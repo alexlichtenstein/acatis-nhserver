@@ -1,0 +1,10 @@
+.custom-date-picker .DateInput {
+    /* Add your custom styles here */
+    border: 2px solid red;  /* Example border style */
+    background-color: lightgray;  /* Example background color */
+    /* Add other CSS properties as needed */
+}
+
+.DateInput_input, .DateInput_input_1 {
+  Height: 30px;
+}

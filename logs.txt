@@ -1,0 +1,5 @@
+Starting collecting data from esg_ratings
+90 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER.
+No new ISINs to add to the database.
+87 new records have been added to the company_data table.
