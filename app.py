@@ -25,6 +25,8 @@ from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 import threading
 
+import dash_bootstrap_components as dbc
+
 # Connection string for SQL Server
 cnxn_string = (
     'Driver={ODBC Driver 18 for SQL Server};'
@@ -89,7 +91,7 @@ def get_unique_dates():
 cache = diskcache.Cache("./cache")
 long_callback_manager = DiskcacheLongCallbackManager(cache)
 
-app = dash.Dash(__name__, external_stylesheets=['styles.css'], long_callback_manager=long_callback_manager)
+app = dash.Dash(__name__, external_stylesheets=['styles.css',dbc.themes.BOOTSTRAP], long_callback_manager=long_callback_manager)
 output_file = "output.txt"
 open(output_file, 'w').close()
 
@@ -122,9 +124,9 @@ app.title = "Nachhaltigkeit Server"
 # Define the layout of the app
 app.layout = html.Div([
     html.Div([
-        html.Img(src="/assets/logo.png", style={'height': '100px'}),
-        html.H1("Nachhaltigkeit Server", style={'margin': '0', 'padding': '10px'}),
-    ], style={'display': 'flex', 'align-items': 'center'}),
+        html.Img(src="/assets/logo.png", style={'height': '43px'}),
+        html.H1("Nachhaltigkeit Server", style={'margin': '0', 'padding-right': '10px', 'margin-left': 'auto'}),
+    ], style={'display': 'flex'}),
 
     dcc.Tabs([
         # Tab 1: ISINS
@@ -134,8 +136,10 @@ app.layout = html.Div([
                     id='add-company-input',
                     type='text',
                     placeholder='Unternehmens-ISIN eingeben',
+                    style={'width': '20%'}
                 ),
                 html.Button('Suchen nach ISIN', id='add-company-button'),
+                html.Br(),
                 html.Div(id='add-company-output'),
                 html.Div(id='dummy-div', style={'display': 'none'}),
                 # html.Button('Show Company Data', id='show-company-data-button'),
@@ -150,50 +154,57 @@ app.layout = html.Div([
                         # Add more columns as needed
                     ],
                     data=[],
+                    style_table={'maxHeight': '80vh', 'overflowY': 'auto'},
                 ),
-            ]),
+            ], style={'margin': '0 5%'}),
         ]),
 
         # Tab 2: Data Tab
         dcc.Tab(label='ESG Daten', children=[
-            html.Div(""),
-            html.Label("Filter:"),  # Add a label for the filters
-            html.Div(""),
-            # dcc.DatePickerSingle(
-            #     id='date-picker',
-            #     placeholder="Date",
-            #     display_format='dddd, MMMM D, YYYY',  # Set a longer date format
-            #     style={'width': '500px'},  # Increase the width of the date picker
-            # ),
-            dcc.Dropdown(
-                id='date-dropdown',
-                options=get_unique_dates(),
-                placeholder="Wählen Sie ein Datum",
-                style={'width': '300px'}  # Adjust the style as needed
-            ),
-            dcc.Dropdown(
-                    id='column-select-dropdown',
-                    options=column_options,
-                    multi=True,
-                    placeholder='Spalten filtern'
+            html.Div([
+                html.Div(""),
+                html.Label("Filter:"),  # Add a label for the filters
+                html.Div(""),
+                # dcc.DatePickerSingle(
+                #     id='date-picker',
+                #     placeholder="Date",
+                #     display_format='dddd, MMMM D, YYYY',  # Set a longer date format
+                #     style={'width': '500px'},  # Increase the width of the date picker
+                # ),
+                dcc.Dropdown(
+                    id='date-dropdown',
+                    options=get_unique_dates(),
+                    placeholder="Wählen Sie ein Datum",
+                    style={'width': '300px'}  # Adjust the style as needed
                 ),
-            dcc.Input(
-                id='isins-input',
-                type='text',
-                placeholder='ISINS eingeben (Komma-getrennt)',
-                style={'width': '300px;height:48px;'}  # Increase the width of the input field
-            ),
-            html.Button('Filter ISINS', id='show-data-button'),  # Rename the button
-            dash_table.DataTable(id='data-table')  # Corrected usage here
+                html.Div(style={'width': '10px'}),
+                dcc.Dropdown(
+                        id='column-select-dropdown',
+                        options=column_options,
+                        multi=True,
+                        placeholder='Spalten filtern'
+                    ),
+                html.Div(style={'width': '10px'}),
+                dcc.Input(
+                    id='isins-input',
+                    type='text',
+                    placeholder='ISINS eingeben (Komma-getrennt)',
+                    style={'width': '300px;height:48px;'}  # Increase the width of the input field
+                ),
+                html.Button('Filter ISINS', id='show-data-button'),  # Rename the button
+                dash_table.DataTable(id='data-table')  # Corrected usage here
+            ], style={'margin': '0 5%'}),
         ]),
 
 
         # Add more tabs if needed
 
         dcc.Tab(label='Manuelle Daten-Import', children=[
-            dcc.Interval(id='interval-component', interval=1 * 1000, n_intervals=0),
-            html.Button("Skript starten", id="run-script-button"),
-            html.Pre(id="output"),
+            html.Div([
+                dcc.Interval(id='interval-component', interval=1 * 1000, n_intervals=0),
+                html.Button("Skript starten", id="run-script-button"),
+                html.Pre(id="output"),
+            ], style={'margin': '0 5%'}),
         ]),
 
         # Tab for Company Data Columns
@@ -219,7 +230,7 @@ app.layout = html.Div([
                     data=[],
                     style_table={'height': '300px', 'overflowY': 'auto'},
                 ),
-            ]),
+            ], style={'margin': '0 5%'}),
         ]),
     ]),
 ])
