@@ -219,6 +219,7 @@ app.layout = html.Div([
                         placeholder='Faktor Name eingeben',
                     ),
                     html.Button('Neuer Faktor hinzufügen', id='add-column-button'),
+                    html.Button('Faktor löschen', id='delete-column-button'),
                     html.Div(id='add-column-output')
                 ]),
                 # html.H4("List of Existing Data Fields:"),
