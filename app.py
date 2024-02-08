@@ -26,6 +26,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import threading
 
 import dash_bootstrap_components as dbc
+import datetime
 
 # Connection string for SQL Server
 cnxn_string = (
@@ -38,6 +39,26 @@ cnxn_string = (
     'TrustServerCertificate=no;'
     'Connection Timeout=30;'
 )
+
+def get_unique_isins():
+    try:
+        # Connection string
+        cnxn_string = (
+            'Driver={ODBC Driver 18 for SQL Server};'
+            'Server=tcp:aogency-acatis.database.windows.net,1433;'
+            'Database=acatis_msci;'
+            'Uid=aogency;'
+            'Pwd=Acatis2023!;'
+            'Encrypt=yes;'
+            'TrustServerCertificate=no;'
+            'Connection Timeout=30;'
+        )
+        with pyodbc.connect(cnxn_string) as conn:
+            df = pd.read_sql_query("SELECT DISTINCT ISSUER_ISIN FROM company", conn)
+        return [{'label': str(isin), 'value': str(isin)} for isin in df['ISSUER_ISIN'].tolist()]
+    except Exception as e:
+        print(e)
+        return []
 
 def get_column_names():
     # Connection string
@@ -120,79 +141,119 @@ def restrict_access():
 
 column_options = [{'label': col, 'value': col} for col in get_column_names()]
 
-app.title = "Nachhaltigkeit Server"
+app.title = "Nachhaltigkeitsserver"
 # Define the layout of the app
 app.layout = html.Div([
     html.Div([
         html.Img(src="/assets/logo.png", style={'height': '43px'}),
-        html.H1("Nachhaltigkeit Server", style={'margin': '0', 'padding-right': '10px', 'margin-left': 'auto'}),
+        html.H1("Nachhaltigkeitsserver", style={'margin': '0', 'padding-right': '10px', 'margin-left': 'auto'}),
     ], style={'display': 'flex'}),
 
     dcc.Tabs([
         # Tab 1: ISINS
-        dcc.Tab(label='Unternehmens Übersicht', children=[
+        dcc.Tab(label='Unternehmensübersicht', children=[
             html.Div([
+                html.Div([
+                    html.H6("In der aktuellen Ansicht können Sie alle Unternehmen sehen, die über die MSCI API verfügbar sind. Sie können das Eingabefeld für eine Suche verwenden.",
+                            style={'margin-top': '20px', 'margin-bottom': '20px'}),
+                ]),
                 dcc.Input(
                     id='add-company-input',
                     type='text',
-                    placeholder='Unternehmens-ISIN eingeben',
+                    placeholder='ISIN-Suche',
                     style={'width': '20%'}
                 ),
-                html.Button('Suchen nach ISIN', id='add-company-button'),
+                # html.Button('Suchen', id='add-company-button'),
                 html.Br(),
                 html.Div(id='add-company-output'),
                 html.Div(id='dummy-div', style={'display': 'none'}),
                 # html.Button('Show Company Data', id='show-company-data-button'),
+                dcc.Loading(
+                            id="loading-company-table",
+                            type="default",  # You can choose from 'graph', 'cube', 'circle', 'dot', or 'default'
+                            children=[
                 dash_table.DataTable(
                     id='company-table',
                     columns=[
                         {'name': 'ISIN', 'id': 'ISSUER_ISIN'},
                         {'name': 'Issuer Name', 'id': 'ISSUER_NAME'},
-                        {'name': 'Company ID', 'id': 'CompanyID'},
-
-
                         # Add more columns as needed
                     ],
                     data=[],
                     style_table={'maxHeight': '80vh', 'overflowY': 'auto'},
+                    style_cell_conditional=[
+                            {'if': {'column_id': 'ISSUER_ISIN'}, 'width': '200px'},  # Set specific width for the ISIN column
+                            # {'if': {'column_id': 'ISSUER_NAME'}, 'width': '200px'},  # Set specific width for the Issuer Name column
+                            # Add more conditions for other columns as needed
+                        ],
                 ),
+                                ]
+                )
             ], style={'margin': '0 5%'}),
         ]),
 
         # Tab 2: Data Tab
         dcc.Tab(label='ESG Daten', children=[
             html.Div([
-                html.Div(""),
-                html.Label("Filter:"),  # Add a label for the filters
-                html.Div(""),
-                # dcc.DatePickerSingle(
-                #     id='date-picker',
-                #     placeholder="Date",
-                #     display_format='dddd, MMMM D, YYYY',  # Set a longer date format
-                #     style={'width': '500px'},  # Increase the width of the date picker
-                # ),
+                html.Div([
+                    html.H6("In der aktuellen Ansicht sehen Sie die Daten, die aus den verfügbaren Datenpaketen der MSCI API abgerufen werden. Mit dem Datumsfilter können Sie das ultimative Datum auswählen. Mit weiteren Filtern können Sie die Faktorliste und die ISINs einschränken.",
+                            style={'margin-top': '20px', 'margin-bottom': '20px'}),
+                    html.H6("Zum Starten wählen Sie bitte das Datum.",
+                            style={'margin-top': '20px', 'margin-bottom': '20px'}),
+                ]),
+                html.Div([
+                    html.Label("Datum:", style={'margin-top': '10px', 'margin-bottom': '10px'}),  # Add a label for the filters
+
+                ]),
+
                 dcc.Dropdown(
                     id='date-dropdown',
                     options=get_unique_dates(),
                     placeholder="Wählen Sie ein Datum",
                     style={'width': '300px'}  # Adjust the style as needed
                 ),
-                html.Div(style={'width': '10px'}),
+                html.Div([
+                    html.Label("Faktorliste:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                    # Add a label for the filters
+
+                ]),
                 dcc.Dropdown(
                         id='column-select-dropdown',
                         options=column_options,
                         multi=True,
                         placeholder='Spalten filtern'
                     ),
-                html.Div(style={'width': '10px'}),
-                dcc.Input(
-                    id='isins-input',
-                    type='text',
-                    placeholder='ISINS eingeben (Komma-getrennt)',
-                    style={'width': '300px;height:48px;'}  # Increase the width of the input field
+                html.Div([
+                    html.Label("ISINs Liste:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                    # Add a label for the filters
+
+                ]),
+                dcc.Dropdown(
+                    id='isins-dropdown',
+                    options=get_unique_isins(),
+                    multi=True,
+                    placeholder='ISINs wählen',
+                    style={'width': '100%', 'margin-bottom': '10px'}
                 ),
-                html.Button('Filter ISINS', id='show-data-button'),  # Rename the button
-                dash_table.DataTable(id='data-table')  # Corrected usage here
+                html.Button("Export", id="export-data-button", style={'margin-top': '10px'}),
+                dcc.Download(id="download-dataframe-csv"),
+                dcc.Loading(
+                            id="loading-data-table",
+                            type="default",  # You can choose from 'graph', 'cube', 'circle', 'dot', or 'default'
+                            children=[
+                    dash_table.DataTable(id='data-table',style_cell_conditional=[
+                                {'if': {'column_id': 'ISSUER_ISIN'}, 'width': '200px'},  # Set specific width for the ISIN column
+                                # {'if': {'column_id': 'ISSUER_NAME'}, 'width': '200px'},  # Set specific width for the Issuer Name column
+                                # Add more conditions for other columns as needed
+                            ],
+                            fixed_columns={'headers': True, 'data': 1},
+                            style_table={'overflowX': 'auto', 'width':'100%', 'minWidth': '100%'},
+
+                                # Corrected usage here
+                            )
+                        ]
+                    )
+
             ], style={'margin': '0 5%'}),
         ]),
 
@@ -269,41 +330,48 @@ def start_script(n_clicks):
 
 @app.callback(
     Output('company-table', 'data'),
-    [Input('add-company-button', 'n_clicks')],
-    [State('add-company-input', 'value')]
+    [Input('add-company-input', 'value')]
 )
-def display_filtered_company_data(n_clicks, isin_input):
-    if n_clicks is None:
-        # On initial load, display all data
-        query = "SELECT * FROM company"
+def display_filtered_company_data(isin_input):
+    if not isin_input:
+        # If no ISIN is provided, display default or all data
+        query = "SELECT TOP 1000 * FROM company"
     else:
-        # If ISIN is provided, filter by ISIN; otherwise, show all data
-        if isin_input:
-            query = f"SELECT * FROM company WHERE ISSUER_ISIN = '{isin_input}'"
-        else:
-            query = "SELECT * FROM company"
+        # Filter by ISIN when input is provided
+        query = f"SELECT * FROM company WHERE ISSUER_ISIN LIKE '%{isin_input}%'"
 
     try:
         with pyodbc.connect(cnxn_string) as conn:
             df = pd.read_sql_query(query, conn)
         return df.to_dict('records')
     except Exception as e:
-        return str(e)
+        print(e)  # It's a good practice to log or print errors
+        return []
 
+@app.callback(
+    Output("download-dataframe-csv", "data"),
+    Input("export-data-button", "n_clicks"),
+    State('data-table', 'data'),
+    prevent_initial_call=True
+)
+def generate_csv(n_clicks, data):
+    if n_clicks is None:
+        raise PreventUpdate
+    df = pd.DataFrame(data)
+    return dcc.send_data_frame(df.to_csv, filename=f"exported_data_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.csv")
 
 @app.callback(
     Output('data-table', 'data'),
     Output('data-table', 'columns'),
-    Input('show-data-button', 'n_clicks'),
     Input('date-dropdown', 'value'),
-    Input('isins-input', 'value'),
+    Input('isins-dropdown', 'value'),
     Input('column-select-dropdown', 'value')
 )
-def update_data_table(n_clicks, selected_date, isins, selected_columns):
+def update_data_table(selected_date, selected_isins, selected_columns):
     try:
         if not selected_date:
             # Handle the case where no date is selected
-            return [], [{'name': 'Bitte wählen das Datum, um die entsprechenden Daten anzuzeigen', 'id': 'no_data'}]
+            return [], []
 
         # Replace with your SQL query to fetch data from the SQL Server database
         # Establish a connection to the SQL Server database
@@ -314,11 +382,10 @@ def update_data_table(n_clicks, selected_date, isins, selected_columns):
             selected_columns = get_column_names()  # Default to all columns if none are selected
 
         # Build the SQL query based on selected_date and isins
-        query = f"SELECT * FROM company RIGHT JOIN company_data ON company.CompanyID = company_data.CompanyID WHERE DataDate = '{selected_date}'"
-        if isins:
-            isins_list = [i.strip() for i in isins.split(',')]
-            isins_condition = " OR ".join([f"ISSUER_ISIN = '{isin}'" for isin in isins_list])
-            query += f" AND ({isins_condition})"
+        query = f"SELECT TOP 1000 * FROM company RIGHT JOIN company_data ON company.CompanyID = company_data.CompanyID WHERE DataDate = '{selected_date}'"
+        if selected_isins:
+            selected_isins_str = ','.join(f"'{isin}'" for isin in selected_isins)
+            query += f" AND ISSUER_ISIN IN ({selected_isins_str})"
 
         # Fetch and filter data from the database
         df = pd.read_sql_query(query, conn)
@@ -327,11 +394,12 @@ def update_data_table(n_clicks, selected_date, isins, selected_columns):
         conn.close()
         issuer_isin_column = {'name': 'ISSUER_ISIN', 'id': 'ISSUER_ISIN'}
         issuer_name_column = {'name': 'ISSUER_NAME', 'id': 'ISSUER_NAME'}
-        issuer_id_column = {'name': 'ISSUERID', 'id': 'ISSUERID'}
+        # issuer_id_column = {'name': 'ISSUERID', 'id': 'ISSUERID'}
         columns = [{'name': col, 'id': col} for col in selected_columns]
-        columns.insert(0, issuer_isin_column)
-        columns.insert(0, issuer_id_column)
         columns.insert(0, issuer_name_column)
+        columns.insert(0, issuer_isin_column)
+        # columns.insert(0, issuer_id_column)
+
         return df.to_dict('records'), columns
     except Exception as e:
         return str(e)
