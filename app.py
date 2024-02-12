@@ -262,38 +262,115 @@ app.layout = html.Div([
 
         dcc.Tab(label='Manuelle Daten-Import', children=[
             html.Div([
+                html.H6("Die Daten werden regelmäßig einmal am Tag heruntergeladen. Wenn Sie den Datenabruf jetzt starten wollen, drücken Sie auf die Starttaste. Der Abruf wird sofort eingeplant und ist in etwa 20 Minuten fertig. ",
+                            style={'margin-top': '20px', 'margin-bottom': '20px'}),
                 dcc.Interval(id='interval-component', interval=1 * 1000, n_intervals=0),
-                html.Button("Skript starten", id="run-script-button"),
+                html.Button("Abruf starten", id="run-script-button"),
                 html.Pre(id="output"),
             ], style={'margin': '0 5%'}),
         ]),
 
-        # Tab for Company Data Columns
-        dcc.Tab(label='Faktoren bearbeiten', children=[
+        dcc.Tab(label='Faktoren Bearbeiten', children=[
             html.Div([
-
                 html.Div([
-                    html.Label("Neuer Faktor Name:"),
-                    dcc.Input(
-                        id='new-column-name-input',
-                        type='text',
-                        placeholder='Faktor Name eingeben',
-                    ),
-                    html.Button('Neuer Faktor hinzufügen', id='add-column-button'),
-                    html.Button('Faktor löschen', id='delete-column-button'),
-                    html.Div(id='add-column-output')
+                    html.H6("In der aktuellen Ansicht sehen Sie alle Faktoren, die von der MSCI API abgerufen werden. Sie können in den Systemeinstellungen zusätzliche Faktoren hinzufügen.",
+                            style={'margin-top': '20px', 'margin-bottom': '20px'}),
                 ]),
-                # html.H4("List of Existing Data Fields:"),
+                dcc.Input(
+                        id='new-factor-name-input',
+                        type='text',
+                        placeholder='Faktor Name eingeben',style={'margin-top': '20px', 'margin-bottom': '20px'}
+                    ),
+                html.Button('Neuer Faktor hinzufügen', id='add-factor-button'),
+                html.Div(id='add-factor-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
+                dcc.Input(
+                    id='add-factor-input',
+                    type='text',
+                    placeholder='Faktor-Suche',
+                    style={'width': '20%'}
+                ),
+                # html.Button('Suchen', id='add-company-button'),
+                html.Br(),
+                html.Div(id='add-factor-output'),
+                html.Div(id='dummy-div', style={'display': 'none'}),
+                # html.Button('Show Company Data', id='show-company-data-button'),
+                dcc.Loading(
+                            id="loading-factor-table",
+                            type="default",  # You can choose from 'graph', 'cube', 'circle', 'dot', or 'default'
+                            children=[
                 dash_table.DataTable(
-                    id='company-data-columns-table',
+                    id='factor-table',
                     columns=[
-                        {'name': 'Faktor Name', 'id': 'column_name'}
+                        {'name': 'Name', 'id': 'Name'},
+                        {'name': 'Status', 'id': 'Status'},
+                        # Add more columns as needed
                     ],
                     data=[],
-                    style_table={'height': '300px', 'overflowY': 'auto'},
+                    editable=True,
+                    dropdown={
+                        'Status': {
+                            'options': [
+                                {'label': 'Ein', 'value': 'Ein'},
+                                {'label': 'Aus', 'value': 'Aus'}
+                            ]
+                        }
+                    },
+                    style_table={'maxHeight': '80vh', 'overflowY': 'auto'},
+                    style_cell_conditional=[
+                            {'if': {'column_id': 'Status'}, 'width': '200px'},  # Set specific width for the ISIN column
+                            # {'if': {'column_id': 'ISSUER_NAME'}, 'width': '200px'},  # Set specific width for the Issuer Name column
+                            # Add more conditions for other columns as needed
+                        ],
+                    style_data_conditional=[
+                        {
+                            'if': {
+                                'filter_query': '{Status} = "Ein"',
+                                'column_id': 'Status'
+                            },
+                            'backgroundColor': 'lightgreen',
+                            'color': 'black'
+                        },
+                        {
+                            'if': {
+                                'filter_query': '{Status} = "Aus"',
+                                'column_id': 'Status'
+                            },
+                            'backgroundColor': 'tomato',
+                            'color': 'white'
+                        }
+                    ]
                 ),
+                                ]
+                )
             ], style={'margin': '0 5%'}),
         ]),
+
+        # Tab for Company Data Columns
+        # dcc.Tab(label='Faktoren bearbeiten', children=[
+        #     html.Div([
+        #
+        #         html.Div([
+        #             html.Label("Neuer Faktor Name:"),
+        #             dcc.Input(
+        #                 id='new-column-name-input',
+        #                 type='text',
+        #                 placeholder='Faktor Name eingeben',
+        #             ),
+        #             html.Button('Neuer Faktor hinzufügen', id='add-column-button'),
+        #             html.Button('Faktor löschen', id='delete-column-button'),
+        #             html.Div(id='add-column-output')
+        #         ]),
+        #         # html.H4("List of Existing Data Fields:"),
+        #         dash_table.DataTable(
+        #             id='company-data-columns-table',
+        #             columns=[
+        #                 {'name': 'Faktor Name', 'id': 'column_name'}
+        #             ],
+        #             data=[],
+        #             style_table={'height': '300px', 'overflowY': 'auto'},
+        #         ),
+        #     ], style={'margin': '0 5%'}),
+        # ]),
     ]),
 ])
 
@@ -347,6 +424,35 @@ def display_filtered_company_data(isin_input):
     except Exception as e:
         print(e)  # It's a good practice to log or print errors
         return []
+
+
+@app.callback(
+    [Output('factor-table', 'data'),
+     Output('factor-table', 'dropdown')],
+    [Input('add-factor-input', 'value'),
+     Input('factor-table', 'data_previous')]
+)
+def update_table(factor_input, previous_data):
+    ctx = dash.callback_context
+    triggered_component = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+
+    if triggered_component == 'add-factor-input' and factor_input:
+        query = f"SELECT * FROM factors WHERE Name LIKE '%{factor_input}%'"
+    elif triggered_component == 'factor-table':
+        return previous_data, dash.no_update
+    else:
+        query = "SELECT * FROM factors"
+
+    try:
+        with pyodbc.connect(cnxn_string) as conn:
+            df = pd.read_sql_query(query, conn)
+            df['Status'] = df['Status'].apply(lambda x: 'Ein' if x == 1 else 'Aus')
+            dropdown_options = [{'label': i, 'value': i} for i in df['Status'].unique()]
+
+        return df.to_dict('records'), {'Status': {'options': dropdown_options}}
+    except Exception as e:
+        print(e)
+        return [], {'Status': {'options': []}}
 
 @app.callback(
     Output("download-dataframe-csv", "data"),
@@ -405,49 +511,49 @@ def update_data_table(selected_date, selected_isins, selected_columns):
         return str(e)
 
 
-@app.callback(
-    Output('company-data-columns-table', 'data'),
-    Output('add-column-output', 'children'),
-    Input('dummy-div', 'children'),
-    Input('add-column-button', 'n_clicks'),
-    State('new-column-name-input', 'value'),
-)
-def display_company_data_columns(_, n_clicks, new_column_name):
-    ctx = callback_context
-    if not ctx.triggered:
-        return dash.no_update, dash.no_update
-
-    triggered_id = ctx.triggered[0]['prop_id']
-
-    if triggered_id == 'dummy-div.children' or triggered_id == 'add-column-button.n_clicks':
-        try:
-            with pyodbc.connect(cnxn_string) as conn:
-                # Fetch and display the existing data fields from the 'company_data' table
-                query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'company_data'"
-                existing_columns = [row.COLUMN_NAME for row in conn.execute(query)]
-
-            data = [{'column_name': column_name} for column_name in existing_columns]
-
-            if triggered_id == 'add-column-button.n_clicks':
-                if not new_column_name:
-                    raise ValueError("Bitte geben einen Faktornamen ein")
-
-                with pyodbc.connect(cnxn_string) as conn:
-                    # Use the specified new_column_name and add it with the type nvarchar(50)
-                    query = f"ALTER TABLE company_data ADD [{new_column_name}] nvarchar(50)"
-                    cursor = conn.cursor()
-                    cursor.execute(query)
-                    conn.commit()
-
-                data.append({'column_name': new_column_name})
-                success_message = f"Neuer Faktor '{new_column_name}' erfolgreich hinzugefügt."
-                return data, success_message
-            else:
-                return data, dash.no_update
-        except Exception as e:
-            return dash.no_update, str(e)
-    else:
-        return dash.no_update, dash.no_update
+# @app.callback(
+#     Output('company-data-columns-table', 'data'),
+#     Output('add-column-output', 'children'),
+#     Input('dummy-div', 'children'),
+#     Input('add-column-button', 'n_clicks'),
+#     State('new-column-name-input', 'value'),
+# )
+# def display_company_data_columns(_, n_clicks, new_column_name):
+#     ctx = callback_context
+#     if not ctx.triggered:
+#         return dash.no_update, dash.no_update
+#
+#     triggered_id = ctx.triggered[0]['prop_id']
+#
+#     if triggered_id == 'dummy-div.children' or triggered_id == 'add-column-button.n_clicks':
+#         try:
+#             with pyodbc.connect(cnxn_string) as conn:
+#                 # Fetch and display the existing data fields from the 'company_data' table
+#                 query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'company_data'"
+#                 existing_columns = [row.COLUMN_NAME for row in conn.execute(query)]
+#
+#             data = [{'column_name': column_name} for column_name in existing_columns]
+#
+#             if triggered_id == 'add-column-button.n_clicks':
+#                 if not new_column_name:
+#                     raise ValueError("Bitte geben einen Faktornamen ein")
+#
+#                 with pyodbc.connect(cnxn_string) as conn:
+#                     # Use the specified new_column_name and add it with the type nvarchar(50)
+#                     query = f"ALTER TABLE company_data ADD [{new_column_name}] nvarchar(50)"
+#                     cursor = conn.cursor()
+#                     cursor.execute(query)
+#                     conn.commit()
+#
+#                 data.append({'column_name': new_column_name})
+#                 success_message = f"Neuer Faktor '{new_column_name}' erfolgreich hinzugefügt."
+#                 return data, success_message
+#             else:
+#                 return data, dash.no_update
+#         except Exception as e:
+#             return dash.no_update, str(e)
+#     else:
+#         return dash.no_update, dash.no_update
 
 server = app.server
 
