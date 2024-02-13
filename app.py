@@ -60,6 +60,38 @@ def get_unique_isins():
         print(e)
         return []
 
+def get_factor_names():
+    # Connection string
+    cnxn_string = (
+        'Driver={ODBC Driver 18 for SQL Server};'
+        'Server=tcp:aogency-acatis.database.windows.net,1433;'
+        'Database=acatis_msci;'
+        'Uid=aogency;'
+        'Pwd=Acatis2023!;'
+        'Encrypt=yes;'
+        'TrustServerCertificate=no;'
+        'Connection Timeout=30;'
+    )
+
+    # Connect to the database
+    cnxn = pyodbc.connect(cnxn_string)
+    cursor = cnxn.cursor()
+
+    # Query to fetch column names from the table
+    query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'company_data'"
+
+    # Execute the query
+    cursor.execute(query)
+
+    # Fetch all column names and exclude specific columns
+    excluded_columns = {'DataID', 'CompanyID', 'DataDate'}
+    columns = [row.COLUMN_NAME for row in cursor.fetchall() if row.COLUMN_NAME not in excluded_columns]
+
+    # Close the connection
+    cursor.close()
+    cnxn.close()
+
+    return columns
 def get_column_names():
     # Connection string
     cnxn_string = (
@@ -140,6 +172,7 @@ def restrict_access():
     pass
 
 column_options = [{'label': col, 'value': col} for col in get_column_names()]
+factor_options = [{'label': col, 'value': col} for col in get_factor_names()]
 
 app.title = "Nachhaltigkeitsserver"
 # Define the layout of the app
@@ -260,9 +293,9 @@ app.layout = html.Div([
 
         # Add more tabs if needed
 
-        dcc.Tab(label='Manuelle Daten-Import', children=[
+        dcc.Tab(label='Manueller Datenimport', children=[
             html.Div([
-                html.H6("Die Daten werden regelmäßig einmal am Tag heruntergeladen. Wenn Sie den Datenabruf jetzt starten wollen, drücken Sie auf die Starttaste. Der Abruf wird sofort eingeplant und ist in etwa 20 Minuten fertig. ",
+                html.H6("Die Daten werden regelmäßig einmal am Tag heruntergeladen. Wenn Sie den Datenabruf jetzt starten wollen, drücken Sie auf die Starttaste. Der Abruf wird sofort gestartet und ist in etwa 20 Minuten fertig.",
                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
                 dcc.Interval(id='interval-component', interval=1 * 1000, n_intervals=0),
                 html.Button("Abruf starten", id="run-script-button"),
@@ -270,7 +303,7 @@ app.layout = html.Div([
             ], style={'margin': '0 5%'}),
         ]),
 
-        dcc.Tab(label='Faktoren Bearbeiten', children=[
+        dcc.Tab(label='Faktore Bearbeiten', children=[
             html.Div([
                 html.Div([
                     html.H6("In der aktuellen Ansicht sehen Sie alle Faktoren, die von der MSCI API abgerufen werden. Sie können in den Systemeinstellungen zusätzliche Faktoren hinzufügen.",
@@ -281,17 +314,29 @@ app.layout = html.Div([
                         type='text',
                         placeholder='Faktor Name eingeben',style={'margin-top': '20px', 'margin-bottom': '20px'}
                     ),
-                html.Button('Neuer Faktor hinzufügen', id='add-factor-button'),
-                html.Div(id='add-factor-output', style={'margin-top': '20px', 'margin-bottom': '20px'}),
-                dcc.Input(
-                    id='add-factor-input',
-                    type='text',
-                    placeholder='Faktor-Suche',
-                    style={'width': '20%'}
-                ),
+                html.Button('Neuen Faktor hinzufügen', id='add-factor-button'),
+                html.Div(id='add-factor-output', style={'margin-top': '20px', 'margin-bottom': '10px'}),
+                # dcc.Input(
+                #     id='add-factor-input',
+                #     type='text',
+                #     placeholder='Faktor-Suche',
+                #     style={'width': '20%'}
+                # ),
+
+                html.Div([
+                    html.Label("Faktor-Suche:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                    # Add a label for the filters
+
+                ]),
+                dcc.Dropdown(
+                        id='factor-select-dropdown',
+                        options=factor_options,
+                        multi=True,
+                        placeholder='Faktore filtern'
+                    ),
                 # html.Button('Suchen', id='add-company-button'),
                 html.Br(),
-                html.Div(id='add-factor-output'),
+                # html.Div(id='add-factor-output'),
                 html.Div(id='dummy-div', style={'display': 'none'}),
                 # html.Button('Show Company Data', id='show-company-data-button'),
                 dcc.Loading(
@@ -302,6 +347,7 @@ app.layout = html.Div([
                     id='factor-table',
                     columns=[
                         {'name': 'Name', 'id': 'Name'},
+                        {'name': 'Mapping', 'id': 'Mapping'},
                         {'name': 'Status', 'id': 'Status'},
                         # Add more columns as needed
                     ],
@@ -310,8 +356,8 @@ app.layout = html.Div([
                     dropdown={
                         'Status': {
                             'options': [
-                                {'label': 'Ein', 'value': 'Ein'},
-                                {'label': 'Aus', 'value': 'Aus'}
+                                {'label': 'Aktiv', 'value': 'Aktiv'},
+                                {'label': 'Inaktiv', 'value': 'Inaktiv'}
                             ]
                         }
                     },
@@ -324,7 +370,7 @@ app.layout = html.Div([
                     style_data_conditional=[
                         {
                             'if': {
-                                'filter_query': '{Status} = "Ein"',
+                                'filter_query': '{Status} = "Aktiv"',
                                 'column_id': 'Status'
                             },
                             'backgroundColor': 'lightgreen',
@@ -332,7 +378,7 @@ app.layout = html.Div([
                         },
                         {
                             'if': {
-                                'filter_query': '{Status} = "Aus"',
+                                'filter_query': '{Status} = "Inaktiv"',
                                 'column_id': 'Status'
                             },
                             'backgroundColor': 'tomato',
@@ -428,28 +474,62 @@ def display_filtered_company_data(isin_input):
 
 @app.callback(
     [Output('factor-table', 'data'),
-     Output('factor-table', 'dropdown')],
-    [Input('add-factor-input', 'value'),
-     Input('factor-table', 'data_previous')]
+     Output('factor-table', 'dropdown'), Output('add-factor-output', 'children')],
+    [
+     Input('factor-table', 'data_previous'), Input('factor-select-dropdown', 'value'),Input('add-factor-button', 'n_clicks') ],
+    State('new-factor-name-input', 'value')
 )
-def update_table(factor_input, previous_data):
+def update_table( previous_data, factor_input_dropdown, n_clicks, new_factor_name):
     ctx = dash.callback_context
     triggered_component = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
 
-    if triggered_component == 'add-factor-input' and factor_input:
-        query = f"SELECT * FROM factors WHERE Name LIKE '%{factor_input}%'"
-    elif triggered_component == 'factor-table':
+    print('triggered')
+    print(triggered_component)
+    if triggered_component == 'dummy-div.children' or triggered_component == 'add-column-button.n_clicks':
+        try:
+            with pyodbc.connect(cnxn_string) as conn:
+                # Fetch and display the existing data fields from the 'company_data' table
+                query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'company_data'"
+                existing_columns = [row.COLUMN_NAME for row in conn.execute(query)]
+
+            data = [{'column_name': column_name} for column_name in existing_columns]
+        except Exception as e:
+            print(str(e))
+    if triggered_component == 'add-factor-button':
+        print('buttonadd')
+        if not new_factor_name:
+            raise ValueError("Bitte geben einen Faktornamen ein")
+
+        with pyodbc.connect(cnxn_string) as conn:
+            print('buttonadd1')
+                    # Use the specified new_column_name and add it with the type nvarchar(50)
+            query = f"ALTER TABLE company_data ADD [{new_factor_name}] nvarchar(50)"
+            cursor = conn.cursor()
+            cursor.execute(query)
+            conn.commit()
+            print('buttonadd2')
+            query = f"INSERT INTO factors (Name, Status, Mapping) VALUES ('{new_factor_name}', 1, '{new_factor_name}')"
+
+            cursor = conn.cursor()
+            cursor.execute(query)
+            conn.commit()
+
+    if not factor_input_dropdown:
+        factor_input_dropdown = get_factor_names()  # Default to all columns if none are selected
+
+    if triggered_component == 'factor-table':
         return previous_data, dash.no_update
     else:
-        query = "SELECT * FROM factors"
+        conditions = " OR ".join([f"Name LIKE '{factor}'" for factor in factor_input_dropdown])
+        query = f"SELECT * FROM factors WHERE {conditions}"
 
     try:
         with pyodbc.connect(cnxn_string) as conn:
             df = pd.read_sql_query(query, conn)
-            df['Status'] = df['Status'].apply(lambda x: 'Ein' if x == 1 else 'Aus')
+            df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
             dropdown_options = [{'label': i, 'value': i} for i in df['Status'].unique()]
 
-        return df.to_dict('records'), {'Status': {'options': dropdown_options}}
+        return df.to_dict('records'), {'Status': {'options': dropdown_options}}, ""
     except Exception as e:
         print(e)
         return [], {'Status': {'options': []}}
@@ -525,25 +605,25 @@ def update_data_table(selected_date, selected_isins, selected_columns):
 #
 #     triggered_id = ctx.triggered[0]['prop_id']
 #
-#     if triggered_id == 'dummy-div.children' or triggered_id == 'add-column-button.n_clicks':
-#         try:
-#             with pyodbc.connect(cnxn_string) as conn:
-#                 # Fetch and display the existing data fields from the 'company_data' table
-#                 query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'company_data'"
-#                 existing_columns = [row.COLUMN_NAME for row in conn.execute(query)]
-#
-#             data = [{'column_name': column_name} for column_name in existing_columns]
-#
-#             if triggered_id == 'add-column-button.n_clicks':
-#                 if not new_column_name:
-#                     raise ValueError("Bitte geben einen Faktornamen ein")
-#
-#                 with pyodbc.connect(cnxn_string) as conn:
-#                     # Use the specified new_column_name and add it with the type nvarchar(50)
-#                     query = f"ALTER TABLE company_data ADD [{new_column_name}] nvarchar(50)"
-#                     cursor = conn.cursor()
-#                     cursor.execute(query)
-#                     conn.commit()
+    # if triggered_id == 'dummy-div.children' or triggered_id == 'add-column-button.n_clicks':
+    #     try:
+    #         with pyodbc.connect(cnxn_string) as conn:
+    #             # Fetch and display the existing data fields from the 'company_data' table
+    #             query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'company_data'"
+    #             existing_columns = [row.COLUMN_NAME for row in conn.execute(query)]
+    #
+    #         data = [{'column_name': column_name} for column_name in existing_columns]
+    #
+    #         if triggered_id == 'add-column-button.n_clicks':
+    #             if not new_column_name:
+    #                 raise ValueError("Bitte geben einen Faktornamen ein")
+    #
+    #             with pyodbc.connect(cnxn_string) as conn:
+    #                 # Use the specified new_column_name and add it with the type nvarchar(50)
+    #                 query = f"ALTER TABLE company_data ADD [{new_column_name}] nvarchar(50)"
+    #                 cursor = conn.cursor()
+    #                 cursor.execute(query)
+    #                 conn.commit()
 #
 #                 data.append({'column_name': new_column_name})
 #                 success_message = f"Neuer Faktor '{new_column_name}' erfolgreich hinzugefügt."
