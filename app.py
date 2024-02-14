@@ -129,7 +129,7 @@ def get_unique_dates():
     try:
         with pyodbc.connect(cnxn_string) as conn:
             # Fetch the unique dates
-            df = pd.read_sql_query("SELECT DISTINCT DataDate FROM company_data", conn)
+            df = pd.read_sql_query("SELECT DISTINCT DataDate FROM company_data ORDER BY DataDate DESC", conn)
 
         # Convert the 'DataDate' column to datetime type
         df['DataDate'] = pd.to_datetime(df['DataDate'])
@@ -187,7 +187,7 @@ app.layout = html.Div([
         dcc.Tab(label='Unternehmensübersicht', children=[
             html.Div([
                 html.Div([
-                    html.H6("In der aktuellen Ansicht können Sie alle Unternehmen sehen, die über die MSCI API verfügbar sind. Sie können das Eingabefeld für eine Suche verwenden.",
+                    html.H6("In der aktuellen Ansicht sehen Sie alle Unternehmen, die auf dem NH-Server verfügbar sind. Sie können das Eingabefeld für eine Suche verwenden.",
                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
                 ]),
                 dcc.Input(
@@ -229,9 +229,9 @@ app.layout = html.Div([
         dcc.Tab(label='ESG Daten', children=[
             html.Div([
                 html.Div([
-                    html.H6("In der aktuellen Ansicht sehen Sie die Daten, die aus den verfügbaren Datenpaketen der MSCI API abgerufen werden. Mit dem Datumsfilter können Sie das ultimative Datum auswählen. Mit weiteren Filtern können Sie die Faktorliste und die ISINs einschränken.",
+                    html.H6("In der aktuellen Ansicht können Sie alle im NH Server verfügbaren Daten sehen. Sie können die Daten nach dem Datum, der Faktorliste und der Liste der ISINs filtern.",
                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
-                    html.H6("Zum Starten wählen Sie bitte das Datum.",
+                    html.H6("Zum Starten wählen Sie bitte das Datum aus.",
                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
                 ]),
                 html.Div([
@@ -242,7 +242,7 @@ app.layout = html.Div([
                 dcc.Dropdown(
                     id='date-dropdown',
                     options=get_unique_dates(),
-                    placeholder="Wählen Sie ein Datum",
+                    placeholder="Wählen Sie ein Datum aus",
                     style={'width': '300px'}  # Adjust the style as needed
                 ),
                 html.Div([
@@ -303,10 +303,10 @@ app.layout = html.Div([
             ], style={'margin': '0 5%'}),
         ]),
 
-        dcc.Tab(label='Faktore Bearbeiten', children=[
+        dcc.Tab(label='Faktoren Bearbeiten', children=[
             html.Div([
                 html.Div([
-                    html.H6("In der aktuellen Ansicht sehen Sie alle Faktoren, die von der MSCI API abgerufen werden. Sie können in den Systemeinstellungen zusätzliche Faktoren hinzufügen.",
+                    html.H6("In der aktuellen Ansicht sehen Sie alle Faktoren, die von der MSCI API abgerufen werden. Sie können hier zusätzliche Faktoren hinzufügen oder bestehende deaktivieren.",
                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
                 ]),
                 dcc.Input(
@@ -461,8 +461,8 @@ def display_filtered_company_data(isin_input):
         query = "SELECT TOP 1000 * FROM company"
     else:
         # Filter by ISIN when input is provided
-        query = f"SELECT * FROM company WHERE ISSUER_ISIN LIKE '%{isin_input}%'"
-
+        query = f"SELECT * FROM company WHERE ISSUER_ISIN LIKE '%{isin_input}%' OR ISSUER_NAME LIKE '%{isin_input}%'"
+        print(query)
     try:
         with pyodbc.connect(cnxn_string) as conn:
             df = pd.read_sql_query(query, conn)
