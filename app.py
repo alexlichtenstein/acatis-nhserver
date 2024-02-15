@@ -78,14 +78,16 @@ def get_factor_names():
     cursor = cnxn.cursor()
 
     # Query to fetch column names from the table
-    query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'company_data'"
+    # query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'company_data'"
+    query = "SELECT * FROM factors"
 
     # Execute the query
     cursor.execute(query)
 
     # Fetch all column names and exclude specific columns
-    excluded_columns = {'DataID', 'CompanyID', 'DataDate'}
-    columns = [row.COLUMN_NAME for row in cursor.fetchall() if row.COLUMN_NAME not in excluded_columns]
+    # excluded_columns = {'DataID', 'CompanyID', 'DataDate'}
+    excluded_columns = {}
+    columns = [row.Mapping for row in cursor.fetchall() if row.Mapping not in excluded_columns]
 
     # Close the connection
     cursor.close()
@@ -336,7 +338,7 @@ app.layout = html.Div([
                     ),
                 # html.Button('Suchen', id='add-company-button'),
                 html.Br(),
-                # html.Div(id='add-factor-output'),
+                html.Div(id='add-factor-output'),
                 html.Div(id='dummy-div', style={'display': 'none'}),
                 # html.Button('Show Company Data', id='show-company-data-button'),
                 dcc.Loading(
@@ -348,7 +350,7 @@ app.layout = html.Div([
                     columns=[
                         {'name': 'Name', 'id': 'Name'},
                         {'name': 'Mapping', 'id': 'Mapping'},
-                        {'name': 'Status', 'id': 'Status'},
+                        {'name': 'Status', 'id': 'Status', 'presentation': 'dropdown'},
                         # Add more columns as needed
                     ],
                     data=[],
@@ -477,62 +479,73 @@ def display_filtered_company_data(isin_input):
      Output('factor-table', 'dropdown'), Output('add-factor-output', 'children')],
     [
      Input('factor-table', 'data_previous'), Input('factor-select-dropdown', 'value'),Input('add-factor-button', 'n_clicks') ],
-    State('new-factor-name-input', 'value')
+    [State('new-factor-name-input', 'value'), State('factor-table', 'data')]
 )
-def update_table( previous_data, factor_input_dropdown, n_clicks, new_factor_name):
+def update_table( previous_data, factor_input_dropdown, n_clicks, new_factor_name, data_current):
     ctx = dash.callback_context
     triggered_component = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
 
     print('triggered')
     print(triggered_component)
-    if triggered_component == 'dummy-div.children' or triggered_component == 'add-column-button.n_clicks':
-        try:
-            with pyodbc.connect(cnxn_string) as conn:
-                # Fetch and display the existing data fields from the 'company_data' table
-                query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'company_data'"
-                existing_columns = [row.COLUMN_NAME for row in conn.execute(query)]
-
-            data = [{'column_name': column_name} for column_name in existing_columns]
-        except Exception as e:
-            print(str(e))
-    if triggered_component == 'add-factor-button':
-        print('buttonadd')
-        if not new_factor_name:
-            raise ValueError("Bitte geben einen Faktornamen ein")
-
-        with pyodbc.connect(cnxn_string) as conn:
-            print('buttonadd1')
-                    # Use the specified new_column_name and add it with the type nvarchar(50)
-            query = f"ALTER TABLE company_data ADD [{new_factor_name}] nvarchar(50)"
-            cursor = conn.cursor()
-            cursor.execute(query)
-            conn.commit()
-            print('buttonadd2')
-            query = f"INSERT INTO factors (Name, Status, Mapping) VALUES ('{new_factor_name}', 1, '{new_factor_name}')"
-
-            cursor = conn.cursor()
-            cursor.execute(query)
-            conn.commit()
+    # if triggered_component == 'dummy-div.children' or triggered_component == 'add-factor-button.n_clicks':
+    #     try:
+    #         with pyodbc.connect(cnxn_string) as conn:
+    #             # Fetch and display the existing data fields from the 'company_data' table
+    #             # query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'company_data'"
+    #             query = "SELECT * FROM factors"
+    #             # existing_columns = [row.COLUMN_NAME for row in conn.execute(query)]
+    #
+    #         # data = [{'column_name': column_name} for column_name in existing_columns]
+    #     except Exception as e:
+    #         print(str(e))
+    # if triggered_component == 'add-factor-button':
+    #     print('buttonadd')
+    #     if not new_factor_name:
+    #         raise ValueError("Bitte geben einen Faktornamen ein")
+    #
+    #     with pyodbc.connect(cnxn_string) as conn:
+    #         print('buttonadd1')
+    #                 # Use the specified new_column_name and add it with the type nvarchar(50)
+    #         query = f"ALTER TABLE company_data ADD [{new_factor_name}] nvarchar(50)"
+    #         cursor = conn.cursor()
+    #         cursor.execute(query)
+    #         conn.commit()
+    #         print('buttonadd2')
+    #         query = f"INSERT INTO factors (Name, Status, Mapping) VALUES ('{new_factor_name}', 1, '{new_factor_name}')"
+    #
+    #         cursor = conn.cursor()
+    #         cursor.execute(query)
+    #         conn.commit()
 
     if not factor_input_dropdown:
         factor_input_dropdown = get_factor_names()  # Default to all columns if none are selected
 
     if triggered_component == 'factor-table':
-        return previous_data, dash.no_update
-    else:
-        conditions = " OR ".join([f"Name LIKE '{factor}'" for factor in factor_input_dropdown])
-        query = f"SELECT * FROM factors WHERE {conditions}"
 
-    try:
+        return previous_data, dash.no_update, ""
+    else:
+        conditions = " OR ".join([f"Mapping LIKE '{factor}'" for factor in factor_input_dropdown])
+        print(conditions)
+        query = f"SELECT * FROM factors WHERE {conditions}"
+        print(query)
         with pyodbc.connect(cnxn_string) as conn:
             df = pd.read_sql_query(query, conn)
             df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
-            dropdown_options = [{'label': i, 'value': i} for i in df['Status'].unique()]
+            print(df.head(5))
+            dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
+            print(dropdown_options)
+            return df.to_dict('records'), {'Status': {'options': dropdown_options}}, ""
 
-        return df.to_dict('records'), {'Status': {'options': dropdown_options}}, ""
-    except Exception as e:
-        print(e)
-        return [], {'Status': {'options': []}}
+    # try:
+    #     with pyodbc.connect(cnxn_string) as conn:
+    #         df = pd.read_sql_query(query, conn)
+    #         df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
+    #         dropdown_options = [{'label': i, 'value': i} for i in df['Status'].unique()]
+    #
+    #     return df.to_dict('records'), {'Status': {'options': dropdown_options}}, ""
+    # except Exception as e:
+    #     print(e)
+    #     return [], {'Status': {'options': []}}, "Updated"
 
 @app.callback(
     Output("download-dataframe-csv", "data"),
