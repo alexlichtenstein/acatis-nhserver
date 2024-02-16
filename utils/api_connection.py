@@ -321,9 +321,12 @@ print(f"Following coverages available:{cov_string}")
 #
 # # Make API request using the generated token
 for c in covs:
-    response, messages = issuers(token,c,get_column_names())
-    sync_issuers_with_database(response)
-    insert_issuer_data(response)
+    try:
+        response, messages = issuers(token,c,get_column_names())
+        sync_issuers_with_database(response)
+        insert_issuer_data(response)
+    except:
+        continue
 
 print("Data been successfully fetched and stored to the internal database.")
 # response = issuers(token)
