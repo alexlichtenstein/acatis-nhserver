@@ -8,3 +8,16 @@
 .DateInput_input, .DateInput_input_1 {
   Height: 30px;
 }
+
+.Select-menu-outer {
+    z-index: 1000; /* Ensure it's above other content */
+}
+.dash-table-container {
+    overflow: visible;
+}
+
+.dash-table-container .dropdown { position: static; }
+
+.dash-table-container .dropdown.dropdown { position: static; }
+
+.Select-clear { display:none;}
