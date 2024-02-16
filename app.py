@@ -361,7 +361,7 @@ app.layout = html.Div([
             ], style={'margin': '0 5%'}),
         ]),
 
-        dcc.Tab(label='Faktoren Bearbeiten', children=[
+        dcc.Tab(label='Faktoren bearbeiten', children=[
             html.Div([
                 html.Div([
                     html.H6("In der aktuellen Ansicht sehen Sie alle Faktoren, die von der MSCI API abgerufen werden. Sie können hier zusätzliche Faktoren hinzufügen oder bestehende deaktivieren.",

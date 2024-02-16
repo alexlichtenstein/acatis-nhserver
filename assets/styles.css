@@ -1,0 +1,55 @@
+.custom-date-picker .DateInput {
+    /* Add your custom styles here */
+    border: 2px solid red;  /* Example border style */
+    background-color: lightgray;  /* Example background color */
+    /* Add other CSS properties as needed */
+}
+
+.DateInput_input, .DateInput_input_1 {
+  Height: 30px;
+}
+
+.Select-menu-outer {
+    z-index: 1000; /* Ensure it's above other content */
+}
+.dash-table-container {
+    overflow: visible;
+}
+
+.dash-table-container .dropdown { position: static; }
+
+.dash-table-container .dropdown.dropdown { position: static; }
+
+.Select-clear { display:none;}
+
+.dash-spreadsheet .Select.has-value.Select--single > .Select-control .Select-value .Select-value-label,
+.dash-spreadsheet .Select.has-value.is-pseudo-focused.Select--single > .Select-control .Select-value .Select-value-label {
+color: black !important;
+}
+
+.dash-spreadsheet .Select.has-value.Select--single > .Select-control .Select-value .Select-value-label,
+.dash-spreadsheet .Select.has-value.is-pseudo-focused.Select--single > .Select-control .Select-value .Select-value-label {
+color: black !important;
+}
+
+.dash-spreadsheet .Select:hover .Select-clear {
+    color: black !important;
+}
+
+.dash-spreadsheet .Select-option:hover {
+    font-weight: bold;
+    color: #7da0bb !important;
+}
+
+.dash-spreadsheet .Select-option {
+    font-weight: bold;
+    color: #26618d !important;
+}
+
+.dash-spreadsheet .Select-arrow {
+    border-top-color: #26618d !important;
+}
+
+.dash-spreadsheet .Select-arrow-zone {
+    border-top-color: #26618d !important;
+}
