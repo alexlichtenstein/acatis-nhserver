@@ -1,6 +1,10 @@
 import json
 import pandas as pd
 
+# Function to extract factor names and descriptions from a JSON file and write them to an Excel file.
+# Inputs:
+#   json_file_path (str): Path to the JSON file containing factor data.
+#   excel_file_path (str): Path to the Excel file where the data will be written.
 def extract_factors_to_excel(json_file_path, excel_file_path):
     # Load JSON data from the file
     with open(json_file_path, 'r') as file:
@@ -21,6 +25,6 @@ def extract_factors_to_excel(json_file_path, excel_file_path):
     df.to_excel(excel_file_path, index=False)
 
 # Example usage
-json_file_path = 'response_1702995220179.json'
-excel_file_path = 'all.xlsx'
-extract_factors_to_excel(json_file_path, excel_file_path)
+# json_file_path = 'response_1702995220179.json'
+# excel_file_path = 'all.xlsx'
+# extract_factors_to_excel(json_file_path, excel_file_path)

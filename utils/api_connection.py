@@ -11,7 +11,12 @@ import warnings
 def create_unverified_ssl_context():
     return ssl._create_unverified_context()
 
-# Function to generate token
+# Function to generate an OAuth 2.0 access token for accessing MSCI ESG data.
+# Inputs:
+#   client_id (str): The client identifier assigned to the application by the authorization server.
+#   client_secret (str): The client secret assigned to the application by the authorization server.
+# Returns:
+#   access_token (str): OAuth 2.0 access token used for authentication and authorization.
 def generate_token(client_id, client_secret):
     context = create_unverified_ssl_context()
     conn = http.client.HTTPSConnection("accounts.msci.com", context=context)
@@ -27,7 +32,14 @@ def generate_token(client_id, client_secret):
     data = res.read()
     return json.loads(data.decode("utf-8"))["access_token"]
 
-# Function to make API request
+# Function to request Environmental, Social, and Governance (ESG) data from the MSCI API.
+# Inputs:
+#   token (str): OAuth 2.0 access token for authentication.
+#   isin_ids (list): List of ISIN codes.
+#   date (str): Date for which the data is requested.
+#   factors (list): List of ESG factors for which data is requested.
+# Returns:
+#   response_data (str): Response data from the API in UTF-8 encoding.
 def api_request(token, isin_ids, date, factors):
     context = create_unverified_ssl_context()
     conn = http.client.HTTPSConnection("api.msci.com", context=context)
@@ -41,6 +53,11 @@ def api_request(token, isin_ids, date, factors):
     data = res.read()
     return data.decode("utf-8")
 
+# Function to perform a health check on the MSCI ESG API.
+# Inputs:
+#   token (str): OAuth 2.0 access token for authentication.
+# Returns:
+#   health_status (str): Status message indicating the health of the API.
 def healthcheck(token):
     context = create_unverified_ssl_context()
     conn = http.client.HTTPSConnection("api.msci.com", context=context)
@@ -54,6 +71,11 @@ def healthcheck(token):
     data = res.read()
     return data.decode("utf-8")
 
+# Function to retrieve available Environmental, Social, and Governance (ESG) coverages from the MSCI API using an OAuth 2.0 access token.
+# Inputs:
+#   token (str): OAuth 2.0 access token for authentication.
+# Returns:
+#   coverages_list (list): List of available ESG coverages.
 def coverages(token):
     context = create_unverified_ssl_context()
     conn = http.client.HTTPSConnection("api.msci.com", context=context)
@@ -75,7 +97,14 @@ def coverages(token):
 
     return coverages_list
 
-
+# Function to retrieve issuer data related to specified factors and coverage from the MSCI ESG API.
+# Inputs:
+#   token (str): OAuth 2.0 access token for authentication.
+#   coverage (str): The type of coverage for which issuer data is requested.
+#   factor_name_list (list): List of ESG factor names for which data is requested.
+# Returns:
+#   all_data (list): List of dictionaries containing issuer data.
+#   messages (list): List of messages indicating any issues encountered during data retrieval.
 def issuers(token, coverage, factor_name_list):
     print(f"Starting collecting data from {coverage}")
     context = create_unverified_ssl_context()
@@ -120,6 +149,9 @@ def issuers(token, coverage, factor_name_list):
     print(f"Following problems have occured: {fetch_problems}")
     return all_data, messages
 
+# Function to retrieve factor names from the database.
+# Returns:
+#   columns (list): List of column names from the factors table.
 def get_column_names():
     # Connection string
     cnxn_string = (
@@ -153,6 +185,9 @@ def get_column_names():
 
     return columns
 
+# Function to synchronize issuer data retrieved from the MSCI API with a SQL Server database.
+# Inputs:
+#   issuer_response (list): List of dictionaries containing issuer data from the MSCI API response.
 def sync_issuers_with_database(issuer_response):
     # Connection string
     cnxn_string = (
@@ -217,6 +252,9 @@ def sync_issuers_with_database(issuer_response):
     cursor.close()
     cnxn.close()
 
+# Function to insert issuer data retrieved from the MSCI API into a SQL Server database.
+# Inputs:
+#   issuer_response (list): List of dictionaries containing issuer data from the MSCI API response.
 def insert_issuer_data(issuer_response):
     # Connection string
     cnxn_string = (
@@ -313,13 +351,9 @@ client_secret = "S1HM7CrxsnbUMRTUkn8o8-t-_OEYnSfXLyaze0IpgX1vPDweBW35wHzmidyvWxd
 # Generate token
 token = generate_token(client_id, client_secret)
 print(f"Token for API been successfully generated.")
-# print('123')
 covs = coverages(token)
 cov_string = ", ".join(covs)
 print(f"Following coverages available:{cov_string}")
-# print(covs)
-#
-# # Make API request using the generated token
 for c in covs:
     try:
         response, messages = issuers(token,c,get_column_names())
@@ -327,7 +361,4 @@ for c in covs:
         insert_issuer_data(response)
     except:
         continue
-
 print("Data been successfully fetched and stored to the internal database.")
-# response = issuers(token)
-# print(response)
