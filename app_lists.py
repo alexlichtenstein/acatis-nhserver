@@ -33,8 +33,8 @@ from datetime import datetime
 import base64
 from azure.storage.blob import BlobServiceClient
 import pdfplumber
-
-dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
+import pandas as pd
+import re
 
 # Connection string for SQL Server
 cnxn_string = (
@@ -52,9 +52,6 @@ cnxn_string = (
 blob_connection_string = "DefaultEndpointsProtocol=https;AccountName=aogencyupload;AccountKey=cBSpeBIFwgoAsCrMRvuu+6Vqn9Ev00rJuK/83RsacxkWifMBG05WGLu4Bt/a+bGrk2SmIrn7J9v6+AStl2M4pw==;EndpointSuffix=core.windows.net"
 blob_container_name = "lists"
 
-import pandas as pd
-import re
-
 # Function to fetch all lists data from the database
 def fetch_all_lists_data():
     conn = pyodbc.connect(cnxn_string)
@@ -63,14 +60,6 @@ def fetch_all_lists_data():
     rows = cursor.fetchall()
     conn.close()
     return rows
-
-def fetch_all_lists_names():
-    conn = pyodbc.connect(cnxn_string)
-    cursor = conn.cursor()
-    cursor.execute('SELECT name FROM lists GROUP BY name')
-    rows = cursor.fetchall()
-    conn.close()
-    return [{'label': row[0], 'value': row[0]} for row in rows]
 
 # Function to fetch ISINs for a specific list from the database
 def fetch_isins_for_list(list_id):
@@ -288,47 +277,6 @@ def get_factor_names():
     cnxn.close()
 
     return columns
-
-def get_list_names():
-    # Connect to the database
-    cnxn = pyodbc.connect(cnxn_string)
-    cursor = cnxn.cursor()
-
-    # Query to fetch column names from the table
-    query = """SELECT 
-    l.name,
-    l.Date,
-    l.Status,
-    l.Type
-FROM 
-    lists l
-JOIN 
-    (SELECT 
-         name, 
-         MAX(Date) AS MaxDate
-     FROM 
-         lists
-     WHERE 
-         Status = 1
-     GROUP BY 
-         name) AS latest
-ON 
-    l.name = latest.name
-    AND l.Date = latest.MaxDate;
-    """
-
-    # Execute the query
-    cursor.execute(query)
-
-    # Fetch all column names and exclude specific columns
-    excluded_columns = {}
-    columns = [row.name for row in cursor.fetchall() if row.name not in excluded_columns]
-
-    # Close the connection
-    cursor.close()
-    cnxn.close()
-
-    return columns
 def get_column_names():
     # Connect to the database
     cnxn = pyodbc.connect(cnxn_string)
@@ -398,7 +346,6 @@ def restrict_access():
 
 column_options = [{'label': col, 'value': col} for col in get_column_names()]
 factor_options = [{'label': col, 'value': col} for col in get_factor_names()]
-list_options = [{'label': col, 'value': col} for col in get_list_names()]
 
 app.title = "Nachhaltigkeitsserver"
 # Define the layout of the app
@@ -589,120 +536,14 @@ app.layout = html.Div([
                 )
             ], style={'margin': '0 5%'}),
         ]),
-
-        dcc.Tab(label='Listen Übersicht', children=[
-            html.Div([
-                html.Div([
-                    html.H6("In der aktuellen Ansicht sehen Sie alle Listen.",
-                            style={'margin-top': '20px', 'margin-bottom': '20px'}),
-                ]),
-                html.Div([
-                    html.Label("Listen-Suche:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
-                ]),
-                dcc.Dropdown(
-                        id='list-select-dropdown',
-                        options=list_options,
-                        multi=True,
-                        placeholder='Listen filtern'
-                    ),
-                html.Br(),
-                html.Div(id='add-list-output'),
-                html.Div(id='dummy-div', style={'display': 'none'}),
-                # html.Button('Show Company Data', id='show-company-data-button'),
-
-                dash_table.DataTable(
-                    id='list-table',
-                    css=[{"selector":".dropdown", "rule": "position: static",}],
-                    columns=[
-                        {'name': 'Name', 'id': 'Name'},
-                        {'name': 'Leztes Update Datum', 'id': 'Date'},
-                        {'name': 'Type', 'id': 'Type'},
-                        {'name': 'Anzahl Uploads', 'id': 'Anzahl'},
-                        {'name': 'Status', 'id': 'Status', 'editable': True,
-                         'presentation': 'dropdown'},
-
-                        # Add more columns as needed
-                    ],
-                    data=[],
-                    editable=True,
-                    dropdown={
-                        'Status': {
-                            'options': [
-                                {'label': 'Aktiv', 'value': 'Aktiv'},
-                                {'label': 'Inaktiv', 'value': 'Inaktiv'}
-                            ]
-                        }
-                    },
-                    # style_table={'maxHeight': '80vh', 'overflowY': 'auto'},
-                    style_cell_conditional=[
-                            {'if': {'column_id': 'Status'}, 'width': '200px'},  # Set specific width for the ISIN column
-                        ],
-                    style_data_conditional=[
-                        {
-                            'if': {
-                                'filter_query': '{Status} = "Aktiv"',
-                                'column_id': 'Status'
-                            },
-                            'backgroundColor': 'lightgreen',
-                            'color': 'black'
-                        },
-                        {
-                            'if': {
-                                'filter_query': '{Status} = "Inaktiv"',
-                                'column_id': 'Status'
-                            },
-                            'backgroundColor': 'tomato',
-                            # 'color': 'white'
-                        }
-                    ]
-                ),
-
-            ], style={'margin': '0 5%'}),
-        ]),
-
         ##LISTS TABS
-        # dcc.Tab(label='Listen Übersicht', children=[
-        #     html.Div([
-        #         html.Table(id='all-lists-table'),
-        #         # html.Table(id='isins-table')
-        #     ], style={'margin': '0 5%'})
-        # ]),
-        # dcc.Tab(label='Listen Übersicht', children=[
-        #     html.Div([
-        #         html.Div([
-        #             html.H6("In der aktuellen Ansicht sehen Sie alle Listen, die auf dem NH-Server verfügbar sind. Sie können das Eingabefeld für eine Suche verwenden.",
-        #                     style={'margin-top': '20px', 'margin-bottom': '20px'}),
-        #         ]),
-        #         dcc.Input(
-        #             id='add-list-input',
-        #             type='text',
-        #             placeholder='Listen-Suche',
-        #             style={'width': '20%'}
-        #         ),
-        #         html.Br(),
-        #         html.Div(id='add-list-output'),
-        #         html.Div(id='dummy-div', style={'display': 'none'}),
-        #         dcc.Loading(
-        #                     id="loading-list-table",
-        #                     type="default",
-        #                     children=[
-        #         dash_table.DataTable(
-        #             id='list-table',
-        #             # columns=[
-        #             #     {'name': 'ISIN', 'id': 'ISSUER_ISIN'},
-        #             #     {'name': 'Issuer Name', 'id': 'ISSUER_NAME'},
-        #             # ],
-        #             data=[],
-        #             style_table={'maxHeight': '80vh', 'overflowY': 'auto'},
-        #             # style_cell_conditional=[
-        #             #         {'if': {'column_id': 'ISSUER_ISIN'}, 'width': '200px'},  # Set specific width for the ISIN column
-        #             #     ],
-        #         ),
-        #                         ]
-        #         )
-        #     ], style={'margin': '0 5%'}),
-        # ]),
-        dcc.Tab(label='Neue Liste hochladen', children=[
+        dcc.Tab(label='Lists', children=[
+            html.Div([
+                html.Table(id='all-lists-table'),
+                # html.Table(id='isins-table')
+            ], style={'margin': '0 5%'})
+        ]),
+        dcc.Tab(label='Upload', children=[
             dcc.Upload(
                 id='upload-data',
                 children=html.Div([
@@ -722,34 +563,23 @@ app.layout = html.Div([
                 multiple=False
             ),
             html.Div(id='output-file-name'),
-            html.Div(children=[
-            dcc.Dropdown(id='input-name-dropdown', options=fetch_all_lists_names(), placeholder='Select Name',
-                         ),
-            html.H6("Oder geben Sie den neuen Namen ein",
-                            style={'margin-top': '20px', 'margin-bottom': '20px'}),
-            dcc.Input(id='input-name', type='text', placeholder='Enter Name', ),
-                ], style={'margin': '10px 10px 10px 10px','width':'300px'}),
-
-            dcc.Textarea(id='input-description', placeholder='Enter Description', style={'margin': '0 10px 0 10px'}),
+            dcc.Input(id='input-name', type='text', placeholder='Enter Name'),
+            dcc.Textarea(id='input-description', placeholder='Enter Description'),
             dcc.Dropdown(
                 id='input-type',
                 options=[
                     {'label': 'Positiv', 'value': 'Positiv'},
                     {'label': 'Negativ', 'value': 'Negativ'}
                 ],
-                placeholder='Select Type',
-                style={'margin': '10px 10px 10px 0px','width':'300px'}
+                placeholder='Select Type'
             ),
             dcc.DatePickerSingle(
                 id='input-date',
                 placeholder='Select Date',
-                clearable=True,
-                style={'margin': '10px 10px 10px 10px'}
+                clearable=True
             ),
-            html.Div(children=[
-                html.Button('Upload', id='upload-button', style={'margin': '10px 10px 10px 10px'}),
-            ]),
-            html.Div(id='output-upload', style={'margin': '10px 10px 10px 10px'}),
+            html.Button('Upload', id='upload-button'),
+            html.Div(id='output-upload'),
         ]),
         ##LISTS TABS END
     ]),
@@ -767,14 +597,6 @@ def run_script():
             file.flush()
 
 
-# Callback to handle file upload
-@app.callback(Output('output-file-name', 'children'),
-              [Input('upload-data', 'filename')])
-def update_file_name(filename):
-    if filename:
-        return html.Div([html.B('Selected File: '), filename])
-    else:
-        return html.Div()
 # Callback to update input fields based on filename
 @app.callback([Output('input-type', 'value'),
                Output('input-date', 'date')],
@@ -878,24 +700,6 @@ def display_filtered_company_data(isin_input):
         print(e)  # It's a good practice to log or print errors
         return []
 
-# @app.callback(
-#     Output('list-table', 'data'),
-#     [Input('add-list-input', 'value')]
-# )
-# def display_filtered_list_data(list_input):
-#     if not list_input:
-#         # If no ISIN is provided, display default or all data
-#         query = "SELECT TOP 1000 * FROM lists"
-#     else:
-#         # Filter by ISIN when input is provided
-#         query = f"SELECT * FROM lists WHERE name LIKE '%{list_input}%' OR filename LIKE '%{list_input}%'"
-#     try:
-#         with pyodbc.connect(cnxn_string) as conn:
-#             df = pd.read_sql_query(query, conn)
-#         return df.to_dict('records')
-#     except Exception as e:
-#         print(e)  # It's a good practice to log or print errors
-#         return []
 
 @app.callback(
     [Output('factor-table', 'data'),
@@ -983,87 +787,6 @@ def update_table( previous_data, factor_input_dropdown, n_clicks, new_factor_nam
             df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
             dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
             return df.to_dict('records'), ""
-
-##### LIST UBERSICHT
-@app.callback(
-    [Output('list-table', 'data')],
-    [
-     Input('list-table', 'data_previous'), Input('list-select-dropdown', 'value') ],
-    [State('list-table', 'data')]
-)
-def update_table( previous_data, list_input_dropdown, data_current):
-    ctx = dash.callback_context
-    triggered_component = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
-    # if triggered_component == 'dummy-div.children':
-    #     print('dummy')
-    #     try:
-    #         with pyodbc.connect(cnxn_string) as conn:
-    #             query = "SELECT * FROM factors ORDER BY ID DESC"
-    #
-    #     except Exception as e:
-    #         print(str(e))
-
-    if not list_input_dropdown:
-        list_input_dropdown = get_list_names()  # Default to all columns if none are selected
-
-    if triggered_component == 'list-table':
-        if previous_data is not None:
-            # Find changes between current_data and previous_data
-            for i, (current, previous) in enumerate(zip(data_current, previous_data)):
-                if current != previous:
-                    print(current)
-                    list_id = current['Name']
-                    # Generate SQL query to update changed values
-                    update_queries = []
-                    column_name_change_query = None
-                    old_name = None
-
-                    for key, value in current.items():
-                        if current[key] != previous[key]:
-                            if key == 'Status':
-                                if value == 'Aktiv':
-                                    print('update1')
-                                    update_query = f"UPDATE lists SET status = 1 WHERE name = '{list_id}'"
-                                    update_queries.append(update_query)
-                                else:
-                                    print('update2')
-                                    update_query = f"UPDATE lists SET status = 0 WHERE name = '{list_id}'"
-                                    update_queries.append(update_query)
-                                    print(update_query)
-                    # Execute SQL update queries
-                    try:
-                        with pyodbc.connect(cnxn_string) as conn:
-                            cursor = conn.cursor()
-                            for query in update_queries:
-                                cursor.execute(query)
-                            conn.commit()
-                    except Exception as e:
-                        error_message = f"An error occurred while updating data: {str(e)}"
-        return [data_current]
-    else:
-        conditions = " OR ".join([f"name = '{list}'" for list in list_input_dropdown])
-        query = """
-SELECT
-    l.Name,
-    MAX(l.Date) AS Date,
-    COUNT(*) AS Anzahl,
-    l.Status, l.Type
-FROM
-    lists l
-WHERE {}
-GROUP BY
-    l.name, l.status, l.type 
-
-        """.format(conditions)
-        with pyodbc.connect(cnxn_string) as conn:
-            df = pd.read_sql_query(query, conn)
-            df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
-            dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
-            print(df.info())
-            return [df.to_dict('records')]
-
-
-##### LISTEN UBERSICHT END
 
 @app.callback(
     Output("download-dataframe-csv", "data"),
