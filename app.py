@@ -85,11 +85,12 @@ def upload_file_to_blob(file, filename):
     try:
         blob_service_client = BlobServiceClient.from_connection_string(blob_connection_string)
         blob_client = blob_service_client.get_blob_client(container=blob_container_name, blob=filename)
-        blob_client.upload_blob(file.read())
+        blob_client.upload_blob(file)
         return True
     except Exception as e:
         print("Error uploading file to Azure Blob Storage:", e)
-        return False
+        raise
+        # return False
 
 # Function to extract date and type from filename
 def extract_info_from_filename(filename):
@@ -114,21 +115,50 @@ def extract_info_from_filename(filename):
             continue
     return None, None
 
-def add_list_record(name, description, type, date):
+def add_list_record(name, comment, type, date, filename):
     try:
         cnxn = pyodbc.connect(cnxn_string)
         cursor = cnxn.cursor()
 
         # Insert record into lists table
-        cursor.execute("INSERT INTO lists (name, description, type, date) VALUES (?, ?, ?, ?)",
-                       (name, description, type, date))
+        cursor.execute("INSERT INTO lists (name, comment, type, date, filename, status) OUTPUT INSERTED.id VALUES (?, ?, ?, ?, ?, 1)",
+                       (name, comment, type, date, filename))
+        id_of_new_record = cursor.fetchone()[0]
         cnxn.commit()
-        print("Record added successfully.")
+        print(f"Record added successfully with ID: {id_of_new_record}")
+        return id_of_new_record
     except Exception as e:
         print("Error:", e)
     finally:
-        cnxn.close()
+        if cnxn:
+            cnxn.close()
 
+def add_isins_to_list(isin_list, list_id):
+    try:
+        cnxn = pyodbc.connect(cnxn_string)
+        cursor = cnxn.cursor()
+
+        # Prepare the values to be inserted
+        # This creates a list of tuples, each containing (isin, list_id)
+        values_to_insert = [(isin, list_id) for isin in isin_list]
+
+        # Build the INSERT statement dynamically based on the number of ISINs
+        # The "?" placeholders match the number of values for each row
+        insert_query = f"INSERT INTO lists_data (isin, list_id) VALUES " + \
+                       ", ".join(["(?, ?)"] * len(isin_list))
+
+        # Flatten the list of tuples for the execute() method
+        flattened_values = [item for sublist in values_to_insert for item in sublist]
+
+        # Execute the query with the flattened list of values
+        cursor.execute(insert_query, flattened_values)
+        cnxn.commit()
+        print(f"All ISINs added successfully to list ID: {list_id}")
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        if cnxn:
+            cnxn.close()
 def retrieve_all_lists():
     try:
         cnxn = pyodbc.connect(cnxn_string)
@@ -203,9 +233,16 @@ def parse_excel(file):
             for value in df.values.flatten():
                 # Make sure to convert non-string cells to strings
                 value_str = str(value)
+                value_str = value_str.strip()
                 # Search for records matching the new pattern "XXYYYYYY"
-                matches = re.findall(r'\b[A-Z]{2}[A-Z0-9]{6,8}\b', value_str)
-                records.extend(matches)
+                # matches = re.findall(r'\b[A-Z]{2}[A-Z0-9]*\d[A-Z0-9]*\b', value_str)
+                potential_matches = re.findall(r'\b[A-Z]{2}[A-Z0-9]{10}\b', value_str)
+                for match in potential_matches:
+                    # Count the digits in the match
+                    digit_count = sum(char.isdigit() for char in match)
+                    # Ensure the match contains at least 3 to 4 digits
+                    if digit_count >= 2:
+                        records.append(match)
 
         return records
     except Exception as e:
@@ -219,7 +256,15 @@ def parse_pdf(file):
             text = ""
             for page in pdf.pages:
                 text += page.extract_text()
-        return text
+            records = []
+            potential_matches = re.findall(r'\b[A-Z]{2}[A-Z0-9]{10}\b', text)
+            for match in potential_matches:
+                # Count the digits in the match
+                digit_count = sum(char.isdigit() for char in match)
+                # Ensure the match contains at least 3 to 4 digits
+                if digit_count >= 2:
+                    records.append(match)
+        return records
     except Exception as e:
         print("Error parsing PDF file:", e)
         return None
@@ -329,6 +374,49 @@ ON
     cnxn.close()
 
     return columns
+
+def get_list_names_with_dates():
+    # Connect to the database
+    cnxn = pyodbc.connect(cnxn_string)
+    cursor = cnxn.cursor()
+
+    # Query to fetch column names from the table
+    query = """SELECT 
+    l.name,
+    l.Date,
+    l.Status,
+    l.Type,
+    latest.MaxDate
+FROM 
+    lists l
+JOIN 
+    (SELECT 
+         name, 
+         MAX(Date) AS MaxDate
+     FROM 
+         lists
+     WHERE 
+         Status = 1
+     GROUP BY 
+         name) AS latest
+ON 
+    l.name = latest.name
+    AND l.Date = latest.MaxDate;
+    """
+
+    # Execute the query
+    cursor.execute(query)
+
+    # Fetch all column names and exclude specific columns
+    excluded_columns = {}
+    # columns = [{'name': row.name+'_'+str(row.MaxDate) for row in cursor.fetchall() if row.name not in excluded_columns]
+    columns = [{'label': col.name + '_' + str(col.MaxDate), 'value': col.name}
+                    for col in cursor.fetchall()]
+    # Close the connection
+    cursor.close()
+    cnxn.close()
+
+    return columns
 def get_column_names():
     # Connect to the database
     cnxn = pyodbc.connect(cnxn_string)
@@ -399,6 +487,7 @@ def restrict_access():
 column_options = [{'label': col, 'value': col} for col in get_column_names()]
 factor_options = [{'label': col, 'value': col} for col in get_factor_names()]
 list_options = [{'label': col, 'value': col} for col in get_list_names()]
+list_options_with_dates = get_list_names_with_dates()
 
 app.title = "Nachhaltigkeitsserver"
 # Define the layout of the app
@@ -473,6 +562,15 @@ app.layout = html.Div([
                         options=factor_options,
                         multi=True,
                         placeholder='Spalten filtern'
+                    ),
+                html.Div([
+                    html.Label("Listen:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                ]),
+                dcc.Dropdown(
+                        id='lists-select-dropdown',
+                        options=list_options_with_dates,
+                        multi=True,
+                        placeholder='Listen filtern'
                     ),
                 html.Div([
                     html.Label("ISINs Liste:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
@@ -597,6 +695,24 @@ app.layout = html.Div([
                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
                 ]),
                 html.Div([
+                    html.Label("Typ:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                ]),
+                dcc.Dropdown(
+                        id='list-typ-dropdown',
+                        options=['Positiv','Negativ'],
+                        multi=True,
+                        placeholder='Typ filtern'
+                    ),
+                html.Div([
+                    html.Label("Status:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                ]),
+                dcc.Dropdown(
+                        id='list-status-dropdown',
+                        options=['Aktiv','Inaktiv'],
+                        multi=True,
+                        placeholder='Status filtern'
+                    ),
+                html.Div([
                     html.Label("Listen-Suche:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
                 ]),
                 dcc.Dropdown(
@@ -615,6 +731,7 @@ app.layout = html.Div([
                     css=[{"selector":".dropdown", "rule": "position: static",}],
                     columns=[
                         {'name': 'Name', 'id': 'Name'},
+                        {'name': 'Kommentar', 'id': 'Comment'},
                         {'name': 'Leztes Update Datum', 'id': 'Date'},
                         {'name': 'Type', 'id': 'Type'},
                         {'name': 'Anzahl Uploads', 'id': 'Anzahl'},
@@ -630,6 +747,12 @@ app.layout = html.Div([
                             'options': [
                                 {'label': 'Aktiv', 'value': 'Aktiv'},
                                 {'label': 'Inaktiv', 'value': 'Inaktiv'}
+                            ]
+                        },
+                        'Type': {
+                            'options': [
+                                {'label': 'Positiv', 'value': 'Positiv'},
+                                {'label': 'Negativ', 'value': 'Negativ'}
                             ]
                         }
                     },
@@ -706,8 +829,8 @@ app.layout = html.Div([
             dcc.Upload(
                 id='upload-data',
                 children=html.Div([
-                    'Drag and Drop or ',
-                    html.A('Select Files')
+                    'Drag und Drop oder ',
+                    html.A('File wählen')
                 ]),
                 style={
                     'width': '100%',
@@ -721,33 +844,33 @@ app.layout = html.Div([
                 },
                 multiple=False
             ),
-            html.Div(id='output-file-name'),
+            html.Div(id='output-file-name',style={'margin-top': '20px', 'margin-bottom': '20px'}),
             html.Div(children=[
-            dcc.Dropdown(id='input-name-dropdown', options=fetch_all_lists_names(), placeholder='Select Name',
+            dcc.Dropdown(id='input-name-dropdown', options=fetch_all_lists_names(), placeholder='Name wählen',
                          ),
             html.H6("Oder geben Sie den neuen Namen ein",
                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
-            dcc.Input(id='input-name', type='text', placeholder='Enter Name', ),
+            dcc.Input(id='input-name', type='text', placeholder='Name', ),
                 ], style={'margin': '10px 10px 10px 10px','width':'300px'}),
 
-            dcc.Textarea(id='input-description', placeholder='Enter Description', style={'margin': '0 10px 0 10px'}),
+            dcc.Textarea(id='input-description', placeholder='Kommentar', style={'margin': '0 10px 0 10px'}),
             dcc.Dropdown(
                 id='input-type',
                 options=[
                     {'label': 'Positiv', 'value': 'Positiv'},
                     {'label': 'Negativ', 'value': 'Negativ'}
                 ],
-                placeholder='Select Type',
+                placeholder='Typ wählen',
                 style={'margin': '10px 10px 10px 0px','width':'300px'}
             ),
             dcc.DatePickerSingle(
                 id='input-date',
-                placeholder='Select Date',
+                placeholder='Datum wählen',
                 clearable=True,
                 style={'margin': '10px 10px 10px 10px'}
             ),
             html.Div(children=[
-                html.Button('Upload', id='upload-button', style={'margin': '10px 10px 10px 10px'}),
+                html.Button('Hochladen', id='upload-button', style={'margin': '10px 10px 10px 10px'}),
             ]),
             html.Div(id='output-upload', style={'margin': '10px 10px 10px 10px'}),
         ]),
@@ -816,25 +939,71 @@ def update_fields(filename):
 
 # Callback to handle file upload
 @app.callback(Output('output-upload', 'children'),
-              [Input('upload-button', 'n_clicks')],
+              [Input('upload-button', 'n_clicks'),
+               Input('input-name-dropdown', 'value'),
+               Input('input-name', 'value'),
+               Input('input-description', 'value'),
+               Input('input-type', 'value'),
+               Input('input-date', 'date')],
               [State('upload-data', 'filename'),
                State('upload-data', 'contents')])
-def upload_file(n_clicks, filename, contents):
+def upload_file(n_clicks, name_dropdown, name, description, type, date, filename, contents):
     if n_clicks:
+        if name:
+            name = name
+        elif name_dropdown:
+            name = name_dropdown
+        else:
+            return html.Div(f'Bitte Name eingeben')
+        if date:
+            date = str(date)
+        else:
+            return html.Div(f'Bitte Datum eingeben')
+        if description:
+            description = description
+        else:
+            description = ""
+        if type:
+            type = type
+        else:
+            return html.Div(f'Bitte Typ wählen')
         if filename:
             try:
+                upload_file_to_blob(contents, filename)
+            except Exception as e:
+                if "BlobAlreadyExists" in str(e):
+                    return html.Div(f'Error uploading file, this file already exists')
+                else:
+                    return html.Div(f'Error uploading file: {e}')
+            try:
+                isins = []
+                # Decode the base64 file content
+                content_type, content_string = contents.split(',')
+                decoded = base64.b64decode(content_string)
+                with open(filename, 'wb') as f:
+                    f.write(decoded)
+
                 if filename.endswith('.xlsx'):
-                    df = parse_excel(contents)
-                # Add conditions for other file types like PDF, Word, etc. if required
-                if df is not None:
-                    # Process DataFrame (example: insert into database)
-                    pass
-                elif records:
-                    # Process found records (example: insert into database)
-                    pass
+                    df = parse_excel(filename)
+                    if df is not None:
+                        isins = df
+                if filename.endswith('.pdf'):
+                    df = parse_pdf(filename)
+                    if df is not None:
+                        isins = df
+
+                print("ISINS")
+                print(isins)
+                new_record_id = add_list_record(name, description, type, date,
+                                                filename)
+                print(f"New record ID: {new_record_id}")
+
+                add_isins_to_list(isins, new_record_id)
+
+
                 return html.Div('File uploaded successfully!')
             except Exception as e:
-                return html.Div(f'Error uploading file: {e}')
+                return html.Div(f'Error processing file: {e}')
         else:
             return html.Div('No file selected.')
     return html.Div()
@@ -986,33 +1155,40 @@ def update_table( previous_data, factor_input_dropdown, n_clicks, new_factor_nam
 
 ##### LIST UBERSICHT
 @app.callback(
-    [Output('list-table', 'data')],
+    [Output('list-table', 'data'), Output('list-table', 'columns')],
     [
-     Input('list-table', 'data_previous'), Input('list-select-dropdown', 'value') ],
+     Input('list-table', 'data_previous'), Input('list-select-dropdown', 'value'), Input('list-status-dropdown', 'value'), Input('list-typ-dropdown', 'value') ],
     [State('list-table', 'data')]
 )
-def update_table( previous_data, list_input_dropdown, data_current):
+def update_table( previous_data, list_input_dropdown, list_status_dropdown, list_typ_dropdown, data_current):
     ctx = dash.callback_context
     triggered_component = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
-    # if triggered_component == 'dummy-div.children':
-    #     print('dummy')
-    #     try:
-    #         with pyodbc.connect(cnxn_string) as conn:
-    #             query = "SELECT * FROM factors ORDER BY ID DESC"
-    #
-    #     except Exception as e:
-    #         print(str(e))
 
-    if not list_input_dropdown:
-        list_input_dropdown = get_list_names()  # Default to all columns if none are selected
+    if not list_status_dropdown:
+        list_status_dropdown = ['Aktiv', 'Inaktiv']
+
+    if not list_typ_dropdown:
+        list_typ_dropdown = ['Positiv','Negativ']
+
+    columns = [
+        {'name': 'Name', 'id': 'Name'},
+        {'name': 'Leztes Update Datum', 'id': 'Date'},
+        {'name': 'Type', 'id': 'Type', 'editable': True, 'presentation': 'dropdown'},
+        {'name': 'Anzahl Uploads', 'id': 'Anzahl'},
+        {'name': 'Status', 'id': 'Status', 'editable': True,
+         'presentation': 'dropdown'}
+    ]
 
     if triggered_component == 'list-table':
         if previous_data is not None:
+            print('WEAREHERE')
             # Find changes between current_data and previous_data
             for i, (current, previous) in enumerate(zip(data_current, previous_data)):
                 if current != previous:
                     print(current)
+                    id = current['id']
                     list_id = current['Name']
+                    date = current['Date']
                     # Generate SQL query to update changed values
                     update_queries = []
                     column_name_change_query = None
@@ -1030,6 +1206,13 @@ def update_table( previous_data, list_input_dropdown, data_current):
                                     update_query = f"UPDATE lists SET status = 0 WHERE name = '{list_id}'"
                                     update_queries.append(update_query)
                                     print(update_query)
+                            if key == 'Comment':
+                                update_query = f"UPDATE lists SET comment = '{value}' WHERE id = '{id}'"
+                                update_queries.append(update_query)
+                            if key == 'Type':
+                                update_query = f"UPDATE lists SET type = '{value}' WHERE name = '{list_id}'"
+                                update_queries.append(update_query)
+
                     # Execute SQL update queries
                     try:
                         with pyodbc.connect(cnxn_string) as conn:
@@ -1039,28 +1222,139 @@ def update_table( previous_data, list_input_dropdown, data_current):
                             conn.commit()
                     except Exception as e:
                         error_message = f"An error occurred while updating data: {str(e)}"
-        return [data_current]
-    else:
-        conditions = " OR ".join([f"name = '{list}'" for list in list_input_dropdown])
-        query = """
-SELECT
-    l.Name,
-    MAX(l.Date) AS Date,
-    COUNT(*) AS Anzahl,
-    l.Status, l.Type
-FROM
-    lists l
-WHERE {}
-GROUP BY
-    l.name, l.status, l.type 
 
-        """.format(conditions)
-        with pyodbc.connect(cnxn_string) as conn:
-            df = pd.read_sql_query(query, conn)
-            df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
-            dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
-            print(df.info())
-            return [df.to_dict('records')]
+        if not list_input_dropdown:
+            list_input_dropdown = get_list_names()  # Default to all columns if none are selected
+
+            conditions = " OR ".join([f"name = '{list}'" for list in list_input_dropdown])
+            query = """
+                SELECT
+                    MAX(l.id) as id,
+                    l.Name,
+                    MAX(l.Date) AS Date,
+                    COUNT(*) AS Anzahl,
+                    l.Status, l.Type
+                FROM
+                    lists l
+                WHERE {}
+                GROUP BY
+                    l.name, l.status, l.type 
+
+            """.format(conditions)
+            with pyodbc.connect(cnxn_string) as conn:
+                df = pd.read_sql_query(query, conn)
+                df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
+                dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
+                filtered_df = df[df['Status'].isin(list_status_dropdown) & df['Type'].isin(list_typ_dropdown)]
+                print(df.info())
+                return [filtered_df.to_dict('records'), columns]
+        else:
+            columns = [
+                {'name': 'Name', 'id': 'Name', 'editable': True},
+                {'name': 'Kommentar', 'id': 'Comment', 'editable': True},
+                {'name': 'Anzahl ISINs', 'id': 'AnzahlIsin'},
+                {'name': 'Leztes Update Datum', 'id': 'Date'},
+                {'name': 'Type', 'id': 'Type', 'editable': True, 'presentation': 'dropdown'},
+                {'name': 'Status', 'id': 'Status', 'editable': True,
+                 'presentation': 'dropdown'}
+            ]
+            conditions = " OR ".join([f"l.Name = '{list}'" for list in list_input_dropdown])
+            query = """
+                            SELECT
+                            l.id,
+                            MAX(l.Name) AS Name,
+                            MAX(l.Comment) AS Comment,
+                            MAX(l.Date) AS Date,
+                            COUNT(DISTINCT ld.isin) AS AnzahlIsin, -- Counts distinct ISINs per list
+                            MAX(CONVERT(INT, l.Status)) AS Status, -- Convert bit to int for aggregation
+                            MAX(l.Type) AS Type
+                        FROM
+                            lists l
+                        LEFT JOIN
+                            lists_data ld ON l.id = ld.list_id
+                        WHERE {}
+                        GROUP BY
+                            l.id
+                        ORDER BY
+                            MAX(l.Name) DESC, -- Then sorting by Name in descending order within each Date
+                            MAX(l.Date) DESC; -- Sorting by Date in ascending order
+
+                        """.format(conditions)
+            with pyodbc.connect(cnxn_string) as conn:
+                df = pd.read_sql_query(query, conn)
+                df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
+                filtered_df = df[df['Status'].isin(list_status_dropdown) & df['Type'].isin(list_typ_dropdown)]
+                dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
+                print(df.info())
+                return [filtered_df.to_dict('records'), columns]
+
+        # return [data_current, columns]
+    else:
+        if not list_input_dropdown:
+            list_input_dropdown = get_list_names()  # Default to all columns if none are selected
+
+            conditions = " OR ".join([f"name = '{list}'" for list in list_input_dropdown])
+            query = """
+                SELECT
+                    MAX(l.id) as id,
+                    l.Name,
+                    MAX(l.Date) AS Date,
+                    COUNT(*) AS Anzahl,
+                    l.Status, l.Type
+                FROM
+                    lists l
+                WHERE {}
+                GROUP BY
+                    l.name, l.status, l.type 
+    
+            """.format(conditions)
+            with pyodbc.connect(cnxn_string) as conn:
+                df = pd.read_sql_query(query, conn)
+                df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
+                dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
+                filtered_df = df[df['Status'].isin(list_status_dropdown) & df['Type'].isin(list_typ_dropdown)]
+                print(df.info())
+                return [filtered_df.to_dict('records'), columns]
+        else:
+            columns = [
+                {'name': 'Name', 'id': 'Name', 'editable': True},
+                {'name': 'Kommentar', 'id': 'Comment', 'editable': True},
+                {'name': 'Leztes Update Datum', 'id': 'Date'},
+                {'name': 'Anzahl Isins', 'id': 'AnzahlIsin'},
+                {'name': 'Type', 'id': 'Type', 'editable': True, 'presentation': 'dropdown'},
+                {'name': 'Status', 'id': 'Status', 'editable': True,
+                 'presentation': 'dropdown'}
+            ]
+            conditions = " OR ".join([f"l.Name = '{list}'" for list in list_input_dropdown])
+            query = """
+                            SELECT
+                            l.id,
+                            MAX(l.Name) AS Name,
+                            MAX(l.Comment) AS Comment,
+                            MAX(l.Date) AS Date,
+                            COUNT(DISTINCT ld.isin) AS AnzahlIsin, -- Counts distinct ISINs per list
+                            MAX(CONVERT(INT, l.Status)) AS Status, -- Convert bit to int for aggregation
+                            MAX(l.Type) AS Type
+                        FROM
+                            lists l
+                        LEFT JOIN
+                            lists_data ld ON l.id = ld.list_id
+                        WHERE {}
+                        GROUP BY
+                            l.id
+                        ORDER BY
+                            MAX(l.Name) DESC, -- Then sorting by Name in descending order within each Date
+                            MAX(l.Date) DESC; -- Sorting by Date in ascending order
+
+                        """.format(conditions)
+            with pyodbc.connect(cnxn_string) as conn:
+                df = pd.read_sql_query(query, conn)
+                df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
+                filtered_df = df[df['Status'].isin(list_status_dropdown) & df['Type'].isin(list_typ_dropdown)]
+                dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
+                print(df.info())
+                return [filtered_df.to_dict('records'), columns]
+
 
 
 ##### LISTEN UBERSICHT END
@@ -1075,16 +1369,17 @@ def generate_csv(n_clicks, data):
     if n_clicks is None:
         raise PreventUpdate
     df = pd.DataFrame(data)
-    return dcc.send_data_frame(df.to_csv, filename=f"exported_data_{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.csv")
+    return dcc.send_data_frame(df.to_csv, filename=f"exported_data_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.csv")
 
 @app.callback(
     Output('data-table', 'data'),
     Output('data-table', 'columns'),
     Input('date-dropdown', 'value'),
     Input('isins-dropdown', 'value'),
-    Input('column-select-dropdown', 'value')
+    Input('column-select-dropdown', 'value'),
+    Input('lists-select-dropdown', 'value')
 )
-def update_data_table(selected_date, selected_isins, selected_columns):
+def update_data_table(selected_date, selected_isins, selected_columns, selected_lists):
     try:
         if not selected_date:
             # Handle the case where no date is selected
@@ -1106,7 +1401,14 @@ def update_data_table(selected_date, selected_isins, selected_columns):
             # Ensure only enabled and selected columns are included
             selected_columns = [col for col in selected_columns if col in mapping_df['Mapping'].tolist()]
 
-
+        lists_query = "SELECT name FROM lists WHERE status = 1 GROUP BY name"
+        list_df = pd.read_sql_query(lists_query, conn)
+        if not selected_lists:
+            selected_lists = list_df['name'].tolist()
+        else:
+            print(selected_lists)
+            # selected_lists = [col for col in selected_lists if col in list_df['name']]
+            # print(selected_lists)
         # Build the SQL query based on selected_date and isins
         query = f"SELECT TOP 1000 * FROM company RIGHT JOIN company_data ON company.CompanyID = company_data.CompanyID WHERE DataDate = '{selected_date}'"
         if selected_isins:
@@ -1122,6 +1424,10 @@ def update_data_table(selected_date, selected_isins, selected_columns):
         issuer_isin_column = {'name': 'ISSUER_ISIN', 'id': 'ISSUER_ISIN'}
         issuer_name_column = {'name': 'ISSUER_NAME', 'id': 'ISSUER_NAME'}
         columns = [{'name': col, 'id': col} for col in df.columns if col in selected_columns]
+        for col in selected_lists:
+            print(col)
+            columns.append({'name': col, 'id': col})
+        # columns.append([{'name': col, 'id': col} for col in selected_lists])
         columns.insert(0, issuer_name_column)
         columns.insert(0, issuer_isin_column)
 
