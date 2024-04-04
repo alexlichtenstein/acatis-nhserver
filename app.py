@@ -826,10 +826,15 @@ app.layout = html.Div([
         #     ], style={'margin': '0 5%'}),
         # ]),
         dcc.Tab(label='Neue Liste hochladen', children=[
+            html.Div([
+            html.Div([
+                    html.H6("In der aktuellen Ansicht kannst du die neue Liste auf den Server hochladen. Das System akzeptiert Excel- und Pdf-Dokumente. Du kannst die Liste unter dem bestehenden Namen anordnen, oder einen neuen Namen eingeben. Wenn der neue Name angegeben wird, wird die Auswahl der Liste vernachlässigt.",
+                            style={'margin-top': '20px', 'margin-bottom': '20px', }),
+                ]),
             dcc.Upload(
                 id='upload-data',
                 children=html.Div([
-                    'Drag und Drop oder ',
+                    'Drag and Drop oder ',
                     html.A('File wählen')
                 ]),
                 style={
@@ -840,7 +845,9 @@ app.layout = html.Div([
                     'borderStyle': 'dashed',
                     'borderRadius': '5px',
                     'textAlign': 'center',
-                    'margin': '10px'
+                    'margin': '10px',
+                    'margin-left': '0px',
+                    'cursor': 'pointer'
                 },
                 multiple=False
             ),
@@ -848,12 +855,12 @@ app.layout = html.Div([
             html.Div(children=[
             dcc.Dropdown(id='input-name-dropdown', options=fetch_all_lists_names(), placeholder='Name wählen',
                          ),
-            html.H6("Oder geben Sie den neuen Namen ein",
+            html.H6("Oder geben Sie einen neuen Namen ein:",
                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
             dcc.Input(id='input-name', type='text', placeholder='Name', ),
-                ], style={'margin': '10px 10px 10px 10px','width':'300px'}),
+                ], style={'margin': '10px 10px 10px 0px','width':'300px'}),
 
-            dcc.Textarea(id='input-description', placeholder='Kommentar', style={'margin': '0 10px 0 10px'}),
+            dcc.Textarea(id='input-description', placeholder='Kommentar', style={'margin': '0 10px 0 0px'}),
             dcc.Dropdown(
                 id='input-type',
                 options=[
@@ -867,14 +874,16 @@ app.layout = html.Div([
                 id='input-date',
                 placeholder='Datum wählen',
                 clearable=True,
-                style={'margin': '10px 10px 10px 10px'}
+                style={'margin': '10px 10px 10px 0px', 'width':'150px'}
             ),
             html.Div(children=[
-                html.Button('Hochladen', id='upload-button', style={'margin': '10px 10px 10px 10px'}),
+                html.Button('Hochladen', id='upload-button', style={'margin': '10px 10px 10px 0px'}),
             ]),
             html.Div(id='output-upload', style={'margin': '10px 10px 10px 10px'}),
+            ],style={'margin': '0 5%'}),
         ]),
         ##LISTS TABS END
+
     ]),
 ])
 
