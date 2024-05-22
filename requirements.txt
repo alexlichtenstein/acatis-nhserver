@@ -45,3 +45,4 @@ zipp==3.17.0
 gunicorn
 pdfplumber
 azure-storage-blob
+flask_caching
