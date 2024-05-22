@@ -53,3 +53,13 @@ color: black !important;
 .dash-spreadsheet .Select-arrow-zone {
     border-top-color: #26618d !important;
 }
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th:hover [class^='column-header--']:not(.disabled), .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th:hover [class^='dash-filter--']:not(.disabled)
+{
+    color: #26618d !important;
+}
+
+.dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner th.dash-filter input.dash-filter--case--sensitive {
+    border-color : #26618d !important;
+    color: #26618d !important;
+}
