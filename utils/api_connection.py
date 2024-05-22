@@ -350,6 +350,9 @@ client_id = "a568Wa48TM3xzfeOT8xxe3V5VJzo4Mfb"
 client_secret = "S1HM7CrxsnbUMRTUkn8o8-t-_OEYnSfXLyaze0IpgX1vPDweBW35wHzmidyvWxd6"
 # Generate token
 token = generate_token(client_id, client_secret)
+current_time = datetime.now()
+# Print the current time
+print("Time operation started:", current_time)
 print(f"Token for API been successfully generated.")
 covs = coverages(token)
 cov_string = ", ".join(covs)
