@@ -1648,5 +1648,5 @@ cache.clear()
 if __name__ == '__main__':
     if os.path.exists("selected_date.txt"):
         os.remove("selected_date.txt")
-    app.run_server(debug=True, host='0.0.0.0', port=8050) #To run on server
+    app.run_server(debug=True, host='0.0.0.0', port=8000) #To run on server
     # app.run_server(debug=True) #To run locally
