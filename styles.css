@@ -1,10 +1,21 @@
 .custom-date-picker .DateInput {
-    /* Add your custom styles here */
-    border: 2px solid red;  /* Example border style */
-    background-color: lightgray;  /* Example background color */
-    /* Add other CSS properties as needed */
+    border: 2px solid red;
+    background-color: lightgray;
 }
 
 .DateInput_input, .DateInput_input_1 {
-  Height: 30px;
+  Height: 30px;width: 150px;
 }
+
+.Select-menu-outer {
+    z-index: 1000;
+}
+.dash-table-container {
+    overflow: visible;
+}
+
+.dash-table-container .dropdown { position: static; }
+
+.dash-table-container .dropdown.dropdown { position: static; }
+
+.Select-clear { display:none;}
