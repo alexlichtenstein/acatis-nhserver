@@ -114,7 +114,7 @@ def extract_info_from_filename(filename):
                 elif quarter == 4:
                     date = datetime(date.year, 12, 31)
             type_from_filename = 'Positiv' if 'positiv' in filename.lower() else 'Negativ' if 'negativ' in filename.lower() else None
-            return type_from_filename, date.strftime('%Y-%m-%d')
+            return type_from_filename, date.strftime('%d-%m-%Y')
         except:
             continue
     return None, None
@@ -376,8 +376,6 @@ JOIN
          MAX(Date) AS MaxDate
      FROM 
          lists
-     WHERE 
-         Status = 1
      GROUP BY 
          name) AS latest
 ON 
@@ -448,7 +446,7 @@ def get_list_names_with_dates_till_date(max_date):
 
     # Format the date parameter to ensure it works in the SQL query
     if isinstance(max_date, datetime):
-        max_date = max_date.strftime('%Y-%m-%d')
+        max_date = max_date.strftime('%d-%m-%Y')
     # Query to fetch column names from the table
     query = """SELECT 
         l.name,
@@ -518,9 +516,16 @@ def get_unique_dates():
         # Convert the 'DataDate' column to datetime type
         df['DataDate'] = pd.to_datetime(df['DataDate'])
 
-        # Format the dates and prepare them for the dropdown options
-        dates = df['DataDate'].dt.strftime('%Y-%m-%d').tolist()
-        return [{'label': date, 'value': date} for date in dates]
+        # Format the dates for the labels
+        labels = df['DataDate'].dt.strftime('%d-%m-%Y').tolist()
+
+        # Format the dates for the values
+        values = df['DataDate'].dt.strftime('%Y-%m-%d').tolist()
+
+        # Prepare the dropdown options
+        dropdown_options = [{'label': label, 'value': value} for label, value in zip(labels, values)]
+
+        return dropdown_options
     except Exception as e:
         print(e)
         return []
@@ -627,6 +632,10 @@ app.layout = html.Div([
                     html.H6("Zum Starten wählen Sie bitte das Datum aus.",
                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
                 ]),
+                dcc.Loading(
+                            id="loading-esg-table",
+                            type="default",  # You can choose from 'graph', 'cube', 'circle', 'dot', or 'default'
+                            children=[
                 html.Div([
                     html.Label("Datum:", style={'margin-top': '10px', 'margin-bottom': '10px'}),  # Add a label for the filters
                 ]),
@@ -634,17 +643,17 @@ app.layout = html.Div([
                 dcc.Dropdown(
                     id='date-dropdown',
                     options=get_unique_dates(),
-                    placeholder="Wählen Sie ein Datum aus",
+                    placeholder="Auswahl",
                     style={'width': '300px'}  # Adjust the style as needed
                 ),
                 html.Div([
-                    html.Label("Faktorliste:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                    html.Label("ESG-Faktoren:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
                 ]),
                 dcc.Dropdown(
                         id='column-select-dropdown',
                         options=factor_options,
                         multi=True,
-                        placeholder='Spalten filtern'
+                        placeholder='Auswahl'
                     ),
                 html.Div([
                     html.Label("ESG-Listen:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
@@ -653,16 +662,16 @@ app.layout = html.Div([
                         id='lists-select-dropdown',
                         options=list_options_with_dates,
                         multi=True,
-                        placeholder='Listen filtern'
+                        placeholder='Auswahl'
                     ),
                 html.Div([
-                    html.Label("ISINs Liste:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                    html.Label("ISIN Liste:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
                 ]),
                 dcc.Dropdown(
                     id='isins-dropdown',
                     options=get_unique_isins(),
                     multi=True,
-                    placeholder='ISINs wählen',
+                    placeholder='Auswahl',
                     style={'width': '100%', 'margin-bottom': '10px'}
                 ),
                 html.Button("Export", id="export-data-button", style={'margin-top': '10px'}),
@@ -698,6 +707,7 @@ app.layout = html.Div([
                     )
 
             ], style={'margin': '0 5%'}),
+                ], style={'margin': '0 5%'}),
         ]),
         dcc.Tab(label="ESG Datenimport", children = [
             dcc.Tabs([
@@ -719,7 +729,7 @@ app.layout = html.Div([
 
         ]),
 
-        dcc.Tab(label='Faktoren bearbeiten', children=[
+        dcc.Tab(label='Import Faktoren bearbeiten', children=[
             html.Div([
                 html.Div([
                     html.H6("In der aktuellen Ansicht sehen Sie alle Faktoren, die von der MSCI API abgerufen werden. Sie können hier zusätzliche Faktoren hinzufügen oder bestehende deaktivieren.",
@@ -728,18 +738,26 @@ app.layout = html.Div([
                 dcc.Input(
                         id='new-factor-name-input',
                         type='text',
-                        placeholder='Faktor Name eingeben',style={'margin-top': '20px', 'margin-bottom': '20px'}
+                        placeholder='Technischer Name',style={'margin-top': '20px', 'margin-bottom': '10px'}
                     ),
+                html.Br(),
+                dcc.Input(
+                    id='new-factor-mapping-input',
+                    type='text',
+                    placeholder='Interne Bezeichnung',
+                    style={'margin-top': '10px', 'margin-bottom': '10px'}
+                ),
+                html.Br(),
                 html.Button('Neuen Faktor hinzufügen', id='add-factor-button'),
                 html.Div(id='add-factor-output', style={'margin-top': '20px', 'margin-bottom': '10px'}),
                 html.Div([
-                    html.Label("Faktor-Suche:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                    html.Label("MSCI-Suche:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
                 ]),
                 dcc.Dropdown(
                         id='factor-select-dropdown',
                         options=factor_options,
                         multi=True,
-                        placeholder='Faktore filtern'
+                        placeholder='Auswahl'
                     ),
                 html.Br(),
                 html.Div(id='add-factor-output'),
@@ -753,8 +771,8 @@ app.layout = html.Div([
                     id='factor-table',
                     css=[{"selector":".dropdown", "rule": "position: static",}],
                     columns=[
-                        {'name': 'Name', 'id': 'Name'},
-                        {'name': 'Mapping', 'id': 'Mapping'},
+                        {'name': 'Technischer Name', 'id': 'Name'},
+                        {'name': 'Interne Bezeichnung', 'id': 'Mapping'},
                         {'name': 'Status', 'id': 'Status', 'editable': True,
                          'presentation': 'dropdown'},
                         # Add more columns as needed
@@ -843,7 +861,7 @@ app.layout = html.Div([
                     columns=[
                         {'name': 'Name', 'id': 'Name'},
                         {'name': 'Kommentar', 'id': 'Comment'},
-                        {'name': 'Leztes Update Datum', 'id': 'Date'},
+                        {'name': 'Gültigkeitsdatum der letzten Upload-Liste', 'id': 'Date'},
                         {'name': 'Type', 'id': 'Type'},
                         {'name': 'Anzahl Uploads', 'id': 'Anzahl'},
                         {'name': 'Status', 'id': 'Status', 'editable': True,
@@ -924,12 +942,25 @@ app.layout = html.Div([
                 multiple=False
             ),
             html.Div(id='output-file-name',style={'margin-top': '20px', 'margin-bottom': '20px'}),
+
+            html.Div(children=[
+                dcc.RadioItems(
+                    id='list-choice',
+                    options=[
+                        {'label': 'Neue Liste anlegen', 'value': 'new'},
+                        {'label': 'Zur bestehenden Liste hinzufügen', 'value': 'existing'}
+                    ],
+                    value='new',
+                    style={'margin': '20px 0'}
+                )
+            ], style={'margin': '10px 0'}),
+
             dcc.Dropdown(id='input-sheet', placeholder='Select a sheet', style={'margin-top': '20px', 'width':'500px'}),
             html.Div(children=[
             dcc.Dropdown(id='input-name-dropdown', options=fetch_all_lists_names(), placeholder='Name wählen',
                          ),
-            html.H6("Oder geben Sie einen neuen Namen ein:",
-                            style={'margin-top': '20px', 'margin-bottom': '20px'}),
+            # html.H6("Oder geben Sie einen neuen Namen ein:",
+            #                 style={'margin-top': '20px', 'margin-bottom': '20px'}),
             dcc.Input(id='input-name', type='text', placeholder='Name', ),
                 ], style={'margin': '10px 10px 10px 0px','width':'300px'}),
 
@@ -945,8 +976,9 @@ app.layout = html.Div([
             ),
             dcc.DatePickerSingle(
                 id='input-date',
-                placeholder='Datum wählen',
+                placeholder='Gültigkeitsdatum wählen',
                 clearable=True,
+                display_format='DD-MM-YYYY',
                 style={'margin': '10px 10px 10px 0px', 'width':'150px'}
             ),
             html.Div(children=[
@@ -1036,7 +1068,7 @@ def update_fields(filename):
                         break
                     except:
                         continue
-            date_from_filename = date.strftime('%Y-%m-%d')
+            date_from_filename = date.strftime('%d-%m-%Y')
         except:
             pass
 
@@ -1222,21 +1254,22 @@ def display_filtered_company_data(isin_input):
      Output('add-factor-output', 'children')],
     [
      Input('factor-table', 'data_previous'), Input('factor-select-dropdown', 'value'),Input('add-factor-button', 'n_clicks') ],
-    [State('new-factor-name-input', 'value'), State('factor-table', 'data')]
+    [State('new-factor-name-input', 'value'), State('new-factor-mapping-input', 'value'), State('factor-table', 'data')]
 )
-def update_table( previous_data, factor_input_dropdown, n_clicks, new_factor_name, data_current):
+def update_table(previous_data, factor_input_dropdown, n_clicks, new_factor_name, new_factor_mapping, data_current):
     ctx = dash.callback_context
     triggered_component = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+
     if triggered_component == 'dummy-div.children' or triggered_component == 'add-factor-button.n_clicks':
         try:
             with pyodbc.connect(cnxn_string) as conn:
                 query = "SELECT * FROM factors ORDER BY ID DESC"
-
         except Exception as e:
             print(str(e))
+
     if triggered_component == 'add-factor-button':
-        if not new_factor_name:
-            error_message = "Bitte geben Sie einen Faktornamen ein."
+        if not new_factor_name or not new_factor_mapping:
+            error_message = "Bitte geben Sie sowohl einen Faktornamen als auch ein Mapping ein."
         else:
             try:
                 with pyodbc.connect(cnxn_string) as conn:
@@ -1245,7 +1278,7 @@ def update_table( previous_data, factor_input_dropdown, n_clicks, new_factor_nam
                     alter_query = f"ALTER TABLE company_data ADD [{new_factor_name}] nvarchar(50)"
                     cursor.execute(alter_query)
                     # Insert new factor into factors table
-                    insert_query = f"INSERT INTO factors (Name, Status, Mapping) VALUES ('{new_factor_name}', 1, '{new_factor_name}')"
+                    insert_query = f"INSERT INTO factors (Name, Status, Mapping) VALUES ('{new_factor_name}', 1, '{new_factor_mapping}')"
                     cursor.execute(insert_query)
                     conn.commit()
             except Exception as e:
@@ -1304,9 +1337,10 @@ def update_table( previous_data, factor_input_dropdown, n_clicks, new_factor_nam
             dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
             return df.to_dict('records'), ""
 
+
 ##### LIST UBERSICHT
 @app.callback(
-    [Output('list-table', 'data'), Output('list-table', 'columns')],
+    [Output('list-table', 'data'), Output('list-table', 'columns'), Output('list-table', 'editable')],
     [
      Input('list-table', 'data_previous'), Input('list-select-dropdown', 'value'), Input('list-status-dropdown', 'value'), Input('list-typ-dropdown', 'value') ],
     [State('list-table', 'data')]
@@ -1323,7 +1357,7 @@ def update_table( previous_data, list_input_dropdown, list_status_dropdown, list
 
     columns = [
         {'name': 'Name', 'id': 'Name'},
-        {'name': 'Leztes Update Datum', 'id': 'Date'},
+        {'name': 'Gültigkeitsdatum der letzten Upload-Liste', 'id': 'Date'},
         {'name': 'Type', 'id': 'Type', 'editable': True, 'presentation': 'dropdown'},
         {'name': 'Anzahl Uploads', 'id': 'Anzahl'},
         {'name': 'Status', 'id': 'Status', 'editable': True,
@@ -1394,18 +1428,20 @@ def update_table( previous_data, list_input_dropdown, list_status_dropdown, list
             with pyodbc.connect(cnxn_string) as conn:
                 df = pd.read_sql_query(query, conn)
                 df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
+                # Convert Date column to desired format
+                df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%d-%m-%Y')
                 dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
                 filtered_df = df[df['Status'].isin(list_status_dropdown) & df['Type'].isin(list_typ_dropdown)]
                 print(df.info())
-                return [filtered_df.to_dict('records'), columns]
+                return [filtered_df.to_dict('records'), columns, True]
         else:
             columns = [
                 {'name': 'Name', 'id': 'Name', 'editable': True},
                 {'name': 'Kommentar', 'id': 'Comment', 'editable': True},
                 {'name': 'Anzahl ISINs', 'id': 'AnzahlIsin'},
-                {'name': 'Leztes Update Datum', 'id': 'Date'},
-                {'name': 'Type', 'id': 'Type', 'editable': True, 'presentation': 'dropdown'},
-                {'name': 'Status', 'id': 'Status', 'editable': True,
+                {'name': 'Gültigkeitsdatum', 'id': 'Date'},
+                {'name': 'Type', 'id': 'Type',  'presentation': 'dropdown'},
+                {'name': 'Status', 'id': 'Status',
                  'presentation': 'dropdown'}
             ]
             conditions = " OR ".join([f"l.Name = '{list}'" for list in list_input_dropdown])
@@ -1433,10 +1469,12 @@ def update_table( previous_data, list_input_dropdown, list_status_dropdown, list
             with pyodbc.connect(cnxn_string) as conn:
                 df = pd.read_sql_query(query, conn)
                 df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
+                # Convert Date column to desired format
+                df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%d-%m-%Y')
                 filtered_df = df[df['Status'].isin(list_status_dropdown) & df['Type'].isin(list_typ_dropdown)]
                 dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
                 print(df.info())
-                return [filtered_df.to_dict('records'), columns]
+                return [filtered_df.to_dict('records'), columns, False]
     else:
         if not list_input_dropdown:
             list_input_dropdown = get_list_names()  # Default to all columns if none are selected
@@ -1459,18 +1497,20 @@ def update_table( previous_data, list_input_dropdown, list_status_dropdown, list
             with pyodbc.connect(cnxn_string) as conn:
                 df = pd.read_sql_query(query, conn)
                 df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
+                # Convert Date column to desired format
+                df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%d-%m-%Y')
                 dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
                 filtered_df = df[df['Status'].isin(list_status_dropdown) & df['Type'].isin(list_typ_dropdown)]
                 print(df.info())
-                return [filtered_df.to_dict('records'), columns]
+                return [filtered_df.to_dict('records'), columns, True]
         else:
             columns = [
                 {'name': 'Name', 'id': 'Name', 'editable': True},
                 {'name': 'Kommentar', 'id': 'Comment', 'editable': True},
-                {'name': 'Leztes Update Datum', 'id': 'Date'},
+                {'name': 'Gültigkeitsdatum', 'id': 'Date'},
                 {'name': 'Anzahl Isins', 'id': 'AnzahlIsin'},
-                {'name': 'Type', 'id': 'Type', 'editable': True, 'presentation': 'dropdown'},
-                {'name': 'Status', 'id': 'Status', 'editable': True,
+                {'name': 'Type', 'id': 'Type',  'presentation': 'dropdown'},
+                {'name': 'Status', 'id': 'Status',
                  'presentation': 'dropdown'}
             ]
             conditions = " OR ".join([f"l.Name = '{list}'" for list in list_input_dropdown])
@@ -1498,10 +1538,12 @@ def update_table( previous_data, list_input_dropdown, list_status_dropdown, list
             with pyodbc.connect(cnxn_string) as conn:
                 df = pd.read_sql_query(query, conn)
                 df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
+                # Convert Date column to desired format
+                df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%d-%m-%Y')
                 filtered_df = df[df['Status'].isin(list_status_dropdown) & df['Type'].isin(list_typ_dropdown)]
                 dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
                 print(df.info())
-                return [filtered_df.to_dict('records'), columns]
+                return [filtered_df.to_dict('records'), columns, False]
 
 
 
@@ -1517,7 +1559,7 @@ def generate_csv(n_clicks, data):
     if n_clicks is None:
         raise PreventUpdate
     df = pd.DataFrame(data)
-    return dcc.send_data_frame(df.to_csv, filename=f"exported_data_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.csv")
+    return dcc.send_data_frame(df.to_csv, filename=f"exported_data_{datetime.now().strftime('%d-%m-%Y-%H-%M-%S')}.csv")
 
 
 @app.callback(
@@ -1635,6 +1677,18 @@ def update_data_table(selected_date, selected_isins, selected_columns, selected_
         # return df.to_dict('records'), columns
     except Exception as e:
         return str(e)
+
+@app.callback(
+    [Output('input-name-dropdown', 'style'),
+     Output('input-name', 'style')],
+    [Input('list-choice', 'value')]
+)
+def toggle_input_fields(choice):
+    if choice == 'existing':
+        return {'display': 'block', 'width': '300px'}, {'display': 'none'}
+    else:
+        return {'display': 'none'}, {'display': 'block', 'width': '300px'}
+
 
 server = app.server
 
