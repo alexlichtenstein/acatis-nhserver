@@ -593,9 +593,9 @@ app.layout = html.Div([
         html.H1("Nachhaltigkeitsserver", style={'margin': '0', 'padding-right': '10px', 'margin-left': 'auto'}),
     ], style={'display': 'flex'}),
     dcc.Store(id='isins-store'),  # Store component to cache ISIN options
-    dcc.Tabs([
+    dcc.Tabs(id='tabs', children=[
         # Tab 1: ISINS
-        dcc.Tab(label='Unternehmensübersicht', children=[
+        dcc.Tab(value='tab-1', label='Unternehmensübersicht', children=[
             html.Div([
                 html.Div([
                     html.H6("In der aktuellen Ansicht sehen Sie alle Unternehmen, die auf dem NH-Server verfügbar sind. Sie können das Eingabefeld für eine Suche verwenden.",
@@ -624,7 +624,7 @@ app.layout = html.Div([
                     filter_action="native",
                     sort_action='native',
                     filter_options={
-                                        'placeholder_text': 'Daten filtern...',
+                                        'placeholder_text': 'Filtern nach ISIN',
                                         'case': 'insensitive'
                                     },
                     sort_mode="multi",
@@ -639,7 +639,7 @@ app.layout = html.Div([
         ]),
 
         # Tab 2: Data Tab
-        dcc.Tab(label='ESG Daten', children=[
+        dcc.Tab(value='tab-2', label='ESG Daten', children=[
             html.Div([
                 html.Div([
                     html.H6("In der aktuellen Ansicht können Sie alle im NH Server verfügbaren Daten sehen. Sie können die Daten nach dem Datum, der Faktorliste und der Liste der ISINs filtern.",
@@ -719,7 +719,7 @@ app.layout = html.Div([
             # ], style={'margin': '0 5%'}),
                 ], style={'margin': '0 5%'}),
         ]),
-        dcc.Tab(label="ESG Datenimport", children = [
+        dcc.Tab(value='tab-3',label="ESG Datenimport", children = [
             dcc.Tabs([
                 dcc.Tab(label='Manueller Datenimport', children=[
                             html.Div([
@@ -740,7 +740,7 @@ app.layout = html.Div([
 
         ]),
 
-        dcc.Tab(label='Import-Faktoren bearbeiten', children=[
+        dcc.Tab(value='tab-4',label='Import-Faktoren bearbeiten', children=[
             html.Div([
                 html.Div([
                     html.H6("In der aktuellen Ansicht sehen Sie alle Faktoren, die von der MSCI API abgerufen werden. Sie können hier zusätzliche Faktoren hinzufügen oder bestehende deaktivieren.",
@@ -828,7 +828,7 @@ app.layout = html.Div([
             ], style={'margin': '0 5%'}),
         ]),
 
-        dcc.Tab(label='Upload Listenübersicht', children=[
+        dcc.Tab(value='tab-5',label='Übersicht der Upload-Listen', children=[
             html.Div([
                 html.Div([
                     html.H6("In der aktuellen Ansicht sehen Sie alle Listen.",
@@ -926,7 +926,7 @@ app.layout = html.Div([
         ]),
 
 
-        dcc.Tab(label='Neue Liste hochladen', children=[
+        dcc.Tab(value='tab-6',label='Neue Liste hochladen', children=[
             html.Div([
             html.Div([
                     html.H6("In der aktuellen Ansicht kannst du die neue Liste auf den Server hochladen. Das System akzeptiert Excel- und Pdf-Dokumente. Du kannst die Liste unter dem bestehenden Namen anordnen, oder einen neuen Namen eingeben. Wenn der neue Name angegeben wird, wird die Auswahl der Liste vernachlässigt.",
@@ -1099,19 +1099,29 @@ def update_fields(filename):
     return type_from_filename, date_from_filename
 
 # Callback to handle file upload
-@app.callback([Output('output-upload', 'children'), Output('list-select-dropdown', 'options'), Output('lists-select-dropdown', 'options'), Output('input-name-dropdown', 'options')],
-              [Input('upload-button', 'n_clicks'),
-               Input('input-name-dropdown', 'value'),
-               Input('input-name', 'value'),
-               Input('input-description', 'value'),
-               Input('input-type', 'value'),
-               Input('input-date', 'date'),
-               Input('input-sheet', 'value'),
-               ],
-              [State('date-dropdown', 'value'),
-               State('upload-data', 'filename'),
-               State('upload-data', 'contents'),
-               State('list-choice', 'value')])
+@app.callback(
+    [
+        Output('output-upload', 'children'),
+        Output('list-select-dropdown', 'options'),
+        Output('lists-select-dropdown', 'options'),
+        Output('input-name-dropdown', 'options'),
+    ],
+    [
+        Input('upload-button', 'n_clicks')
+    ],
+    [
+        State('input-name-dropdown', 'value'),
+        State('input-name', 'value'),
+        State('input-description', 'value'),
+        State('input-type', 'value'),
+        State('input-date', 'date'),
+        State('input-sheet', 'value'),
+        State('date-dropdown', 'value'),
+        State('upload-data', 'filename'),
+        State('upload-data', 'contents'),
+        State('list-choice', 'value')
+    ]
+)
 def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, selected_date, filename, contents, list_choice):
     ctx = dash.callback_context
     if not ctx.triggered:
