@@ -623,6 +623,10 @@ app.layout = html.Div([
                     data=[],
                     filter_action="native",
                     sort_action='native',
+                    filter_options={
+                                        'placeholder_text': 'Daten filtern...',
+                                        'case': 'insensitive'
+                                    },
                     sort_mode="multi",
                     style_table={'maxHeight': '80vh', 'overflowY': 'auto'},
                     style_cell_conditional=[
