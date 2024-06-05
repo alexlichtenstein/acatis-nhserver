@@ -1094,7 +1094,7 @@ def update_fields(filename):
     return type_from_filename, date_from_filename
 
 # Callback to handle file upload
-@app.callback([Output('loading-upload-result', 'children'), Output('list-select-dropdown', 'options'), Output('lists-select-dropdown', 'options'), Output('input-name-dropdown', 'options')],
+@app.callback([Output('output-upload', 'children'), Output('list-select-dropdown', 'options'), Output('lists-select-dropdown', 'options'), Output('input-name-dropdown', 'options')],
               [Input('upload-button', 'n_clicks'),
                Input('input-name-dropdown', 'value'),
                Input('input-name', 'value'),
