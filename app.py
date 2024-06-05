@@ -966,16 +966,17 @@ app.layout = html.Div([
                 )
             ], style={'margin': '10px 0'}),
 
-            dcc.Dropdown(id='input-sheet', placeholder='Tabellenblatt wählen', style={'margin-top': '20px', 'width':'500px'}),
+            dcc.Dropdown(id='input-sheet', placeholder='Tabellenblatt wählen', style={'margin-top': '20px', 'width':'330px'}),
             html.Div(children=[
             dcc.Dropdown(id='input-name-dropdown', options=fetch_all_lists_names(), placeholder='Name wählen',
+style={'margin': '0 10px 0 0px','width':'330px !important'}
                          ),
             # html.H6("Oder geben Sie einen neuen Namen ein:",
             #                 style={'margin-top': '20px', 'margin-bottom': '20px'}),
             dcc.Input(id='input-name', type='text', placeholder='Name', ),
-                ], style={'margin': '10px 10px 10px 0px','width':'300px'}),
+                ], style={'margin': '10px 10px 10px 0px','width':'330px !important'}),
 
-            dcc.Textarea(id='input-description', placeholder='Kommentar', style={'margin': '0 10px 0 0px','width':'300px'}),
+            dcc.Textarea(id='input-description', placeholder='Kommentar', style={'margin': '0 10px 0 0px','width':'330px'}),
             dcc.Dropdown(
                 id='input-type',
                 options=[
@@ -983,7 +984,7 @@ app.layout = html.Div([
                     {'label': 'Negativ', 'value': 'Negativ'}
                 ],
                 placeholder='Typ wählen',
-                style={'margin': '10px 10px 10px 0px','width':'300px'}
+                style={'margin': '10px 10px 10px 0px','width':'330px !important'}
             ),
             dcc.DatePickerSingle(
                 id='input-date',
@@ -1800,9 +1801,9 @@ def update_data_table(selected_date,  selected_columns, selected_lists):
 )
 def toggle_input_fields(choice):
     if choice == 'existing':
-        return {'display': 'block', 'width': '300px'}, {'display': 'none'}, {'display': 'none'}
+        return {'display': 'block', 'width': '330px'}, {'display': 'none'}, {'display': 'none'}
     else:
-        return {'display': 'none'}, {'display': 'block', 'width': '300px'}, {'display': 'block', 'width': '300px'}
+        return {'display': 'none'}, {'display': 'block', 'width': '330px'}, {'display': 'block', 'width': '330px'}
 
 
 
