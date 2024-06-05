@@ -33,6 +33,7 @@ from datetime import datetime
 import base64
 from azure.storage.blob import BlobServiceClient
 import pdfplumber
+import openpyxl
 
 
 dropdown_options = [{'label': 'Aktiv', 'value': 'Aktiv'}, {'label': 'Inaktiv', 'value': 'Inaktiv'}]
@@ -98,7 +99,7 @@ def upload_file_to_blob(file, filename):
 
 # Function to extract date and type from filename
 def extract_info_from_filename(filename):
-    date_formats = ['%d-%m-%y', '%Y%m%d', '%d.%m.%Y', '%d_%m_%Y', 'Q%q_%Y']
+    date_formats = ['%d-%m-%y', '%Y%m%d', '%d.%m.%Y', '%d_%m_%Y']
     for date_format in date_formats:
         try:
             date_str = re.search(r'\b\d{2}[-._]\d{2}[-._]\d{2,4}\b', filename).group()
@@ -327,10 +328,18 @@ def insert_data_to_database(df, records, filename):
     finally:
         cnxn.close()
 
-def get_unique_isins():
+def get_unique_isins(selected_date):
     try:
         with pyodbc.connect(cnxn_string) as conn:
-            df = pd.read_sql_query("SELECT DISTINCT ISSUER_ISIN FROM company", conn)
+            # df = pd.read_sql_query("SELECT DISTINCT ISSUER_ISIN FROM company", conn)
+            query = f"""
+                        SELECT DISTINCT company.ISSUER_ISIN
+                        FROM company
+                        JOIN company_data ON company.CompanyID = company_data.CompanyID
+                        WHERE company_data.DataDate = '{selected_date}'
+                    """
+            df = pd.read_sql_query(query, conn)
+            # conn.close()
         return [{'label': str(isin), 'value': str(isin)} for isin in df['ISSUER_ISIN'].tolist()]
     except Exception as e:
         print(e)
@@ -436,7 +445,7 @@ ON
     # Close the connection
     cursor.close()
     cnxn.close()
-
+    print(columns)
     return columns
 
 def get_list_names_with_dates_till_date(max_date):
@@ -464,13 +473,14 @@ def get_list_names_with_dates_till_date(max_date):
              lists
          WHERE 
              Status = 1
+             AND Date <= ?
          GROUP BY 
              name) AS latest
     ON 
         l.name = latest.name
         AND l.Date = latest.MaxDate
     WHERE 
-        l.Status = 1 AND latest.MaxDate <= ?;
+        l.Status = 1;
     """
     # Execute the query
     cursor.execute(query, max_date)
@@ -581,7 +591,7 @@ app.layout = html.Div([
         html.Img(src="/assets/logo.png", style={'height': '43px'}),
         html.H1("Nachhaltigkeitsserver", style={'margin': '0', 'padding-right': '10px', 'margin-left': 'auto'}),
     ], style={'display': 'flex'}),
-
+    dcc.Store(id='isins-store'),  # Store component to cache ISIN options
     dcc.Tabs([
         # Tab 1: ISINS
         dcc.Tab(label='Unternehmensübersicht', children=[
@@ -632,10 +642,10 @@ app.layout = html.Div([
                     html.H6("Zum Starten wählen Sie bitte das Datum aus.",
                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
                 ]),
-                dcc.Loading(
-                            id="loading-esg-table",
-                            type="default",  # You can choose from 'graph', 'cube', 'circle', 'dot', or 'default'
-                            children=[
+                # dcc.Loading(
+                #             id="loading-esg-table",
+                #             type="default",  # You can choose from 'graph', 'cube', 'circle', 'dot', or 'default'
+                #             children=[
                 html.Div([
                     html.Label("Datum:", style={'margin-top': '10px', 'margin-bottom': '10px'}),  # Add a label for the filters
                 ]),
@@ -664,49 +674,45 @@ app.layout = html.Div([
                         multi=True,
                         placeholder='Auswahl'
                     ),
-                html.Div([
-                    html.Label("ISIN Liste:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
-                ]),
-                dcc.Dropdown(
-                    id='isins-dropdown',
-                    options=get_unique_isins(),
-                    multi=True,
-                    placeholder='Auswahl',
-                    style={'width': '100%', 'margin-bottom': '10px'}
-                ),
+                # html.Div([
+                #     html.Label("ISIN Liste:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                # ]),
+                # dcc.Loading(
+                #                             id="loading-esg-table",
+                #                             type="default",  # You can choose from 'graph', 'cube', 'circle', 'dot', or 'default'
+                #                             children=[
+                # dcc.Dropdown(
+                #     id='isins-dropdown',
+                #     # options=get_unique_isins(),
+                #     multi=True,
+                #     placeholder='Auswahl',
+                #     style={'width': '100%', 'margin-bottom': '10px'}
+                # ),
+                #                                 ]),
                 html.Button("Export", id="export-data-button", style={'margin-top': '10px'}),
                 dcc.Download(id="download-dataframe-csv"),
                 dcc.Loading(
                             id="loading-data-table",
                             type="default",  # You can choose from 'graph', 'cube', 'circle', 'dot', or 'default'
                             children=[
-                    # dash_table.DataTable(id='data-table',style_cell_conditional=[
-                    #             {'if': {'column_id': 'ISSUER_ISIN'}, 'width': '200px'},  # Set specific width for the ISIN column
-                    #         ],
-                    #         fixed_columns={'headers': True, 'data': 1},
-                    #         style_table={'overflowX': 'auto', 'width':'100%', 'minWidth': '100%'},
-                    #         sort_action='native',
-                    #         sort_mode="multi",
-                    #
-                    #         # filter_action='native'
-                    #         )
-                    html.Div(id='datatable', children=[
-                    dash_table.DataTable(id='data-table',style_cell_conditional=[
-                                {'if': {'column_id': 'ISSUER_ISIN'}, 'width': '200px'},  # Set specific width for the ISIN column
-                            ],
-                            fixed_columns={'headers': True, 'data': 1},
-                            style_table={'overflowX': 'auto', 'width':'100%', 'minWidth': '100%'},
-                            sort_action='native',
-                            sort_mode="multi",
 
-                            # filter_action='native'
-                            )
+                                html.Div(id='datatable', children=[
+                                dash_table.DataTable(id='data-table',style_cell_conditional=[
+                                            {'if': {'column_id': 'ISSUER_ISIN'}, 'width': '200px'},  # Set specific width for the ISIN column
+                                        ],
+                                        fixed_columns={'headers': True, 'data': 1},
+                                        style_table={'overflowX': 'auto', 'width':'100%', 'minWidth': '100%'},
+                                        sort_action='native',
+                                        sort_mode="multi",
 
-                    ])
-                        ]
-                    )
+                                        # filter_action='native'
+                                        )
 
-            ], style={'margin': '0 5%'}),
+                                ])
+                            ]
+                )
+
+            # ], style={'margin': '0 5%'}),
                 ], style={'margin': '0 5%'}),
         ]),
         dcc.Tab(label="ESG Datenimport", children = [
@@ -717,10 +723,11 @@ app.layout = html.Div([
                                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
                                 dcc.Interval(id='interval-component', interval=1 * 1000, n_intervals=0),
                                 html.Button("Abruf starten", id="run-script-button"),
-                                html.Pre(id="output"),
+                                dcc.Loading(children=[html.Pre(id="output"),]),
+
                             ], style={'margin': '0 5%'}),
                         ]),
-                dcc.Tab(label='Letzte Import Log', children=[
+                dcc.Tab(label='Letzter Import Log', children=[
                         html.Pre(id="output-historylog"),
                         dcc.Interval(id='trigger-on-load-history', interval=1, n_intervals=0, max_intervals=1)
                     ]),
@@ -817,7 +824,7 @@ app.layout = html.Div([
             ], style={'margin': '0 5%'}),
         ]),
 
-        dcc.Tab(label='Listen Übersicht', children=[
+        dcc.Tab(label='Upload Listenübersicht', children=[
             html.Div([
                 html.Div([
                     html.H6("In der aktuellen Ansicht sehen Sie alle Listen.",
@@ -921,6 +928,10 @@ app.layout = html.Div([
                     html.H6("In der aktuellen Ansicht kannst du die neue Liste auf den Server hochladen. Das System akzeptiert Excel- und Pdf-Dokumente. Du kannst die Liste unter dem bestehenden Namen anordnen, oder einen neuen Namen eingeben. Wenn der neue Name angegeben wird, wird die Auswahl der Liste vernachlässigt.",
                             style={'margin-top': '20px', 'margin-bottom': '20px', }),
                 ]),
+            # dcc.Loading(
+            #         id="loading-company-table",
+            #         type="default",
+            #         children=[
             dcc.Upload(
                 id='upload-data',
                 children=html.Div([
@@ -955,7 +966,7 @@ app.layout = html.Div([
                 )
             ], style={'margin': '10px 0'}),
 
-            dcc.Dropdown(id='input-sheet', placeholder='Select a sheet', style={'margin-top': '20px', 'width':'500px'}),
+            dcc.Dropdown(id='input-sheet', placeholder='Tabellenblatt wählen', style={'margin-top': '20px', 'width':'500px'}),
             html.Div(children=[
             dcc.Dropdown(id='input-name-dropdown', options=fetch_all_lists_names(), placeholder='Name wählen',
                          ),
@@ -979,13 +990,19 @@ app.layout = html.Div([
                 placeholder='Gültigkeitsdatum wählen',
                 clearable=True,
                 display_format='DD-MM-YYYY',
-                style={'margin': '10px 10px 10px 0px', 'width':'150px'}
+                style={'margin': '10px 10px 10px 0px', 'width':'300px', 'display':'block'}
             ),
             html.Div(children=[
                 html.Button('Hochladen', id='upload-button', style={'margin': '10px 10px 10px 0px'}),
             ]),
-            html.Div(id='output-upload', style={'margin': '10px 10px 10px 10px'}),
+            dcc.Loading(
+                    id="loading-company-table",
+                    type="default",
+                    children=[
+                html.Div(id='output-upload', style={'margin': '10px 10px 10px 10px'}),
+                        ]),
             ],style={'margin': '0 5%'}),
+
         ]),
         ##LISTS TABS END
 
@@ -1009,7 +1026,7 @@ def run_script():
               [Input('upload-data', 'filename')])
 def update_file_name(filename):
     if filename:
-        return html.Div([html.B('Selected File: '), filename])
+        return html.Div([html.B('Ausgewählte Datei: '), filename])
     else:
         return html.Div()
 
@@ -1029,12 +1046,12 @@ def update_dropdown_options(contents, filename):
 
             # Construct options for the dropdown
             options = [{'label': sheet, 'value': sheet} for sheet in sheet_names]
-            options.insert(0, {'label': 'All', 'value': 'All'})  # Option to select all sheets
+            options.insert(0, {'label': 'Alle', 'value': 'All'})  # Option to select all sheets
 
             return options, {'display': 'block'}
         except Exception as e:
             print("Error:", e)
-            return [{'label': 'Error reading file', 'value': 'error'}], {'display': 'none'}
+            return [{'label': 'Fehler beim Lesen der Datei', 'value': 'error'}], {'display': 'none'}
     else:
         return [], {'display': 'none'}
 # Callback to update input fields based on filename
@@ -1084,10 +1101,13 @@ def update_fields(filename):
                Input('input-description', 'value'),
                Input('input-type', 'value'),
                Input('input-date', 'date'),
-               Input('input-sheet', 'value')],
-              [State('upload-data', 'filename'),
-               State('upload-data', 'contents')])
-def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, filename, contents):
+               Input('input-sheet', 'value'),
+               ],
+              [State('date-dropdown', 'value'),
+               State('upload-data', 'filename'),
+               State('upload-data', 'contents'),
+               State('list-choice', 'value')])
+def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, selected_date, filename, contents, list_choice):
     ctx = dash.callback_context
     if not ctx.triggered:
         trigger_id = 'No clicks yet'
@@ -1095,11 +1115,13 @@ def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, f
         trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     list_options = [{'label': col, 'value': col} for col in get_list_names()]
+
     list_options_with_dates = get_list_names_with_dates()
+
     input_name = fetch_all_lists_names()
 
     if trigger_id == 'upload-button':
-        if name:
+        if list_choice == 'new':
             name = name
         elif name_dropdown:
             name = name_dropdown
@@ -1113,10 +1135,23 @@ def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, f
             description = description
         else:
             description = ""
-        if type:
-            type = type
-        else:
-            return html.Div(f'Bitte Typ wählen'), list_options, list_options_with_dates, input_name
+        if list_choice == 'new':
+            if type:
+                type = type
+            else:
+                return html.Div(f'Bitte Typ wählen'), list_options, list_options_with_dates, input_name
+        elif name_dropdown:
+            print('oops ')
+            print(name_dropdown)
+            query_type = f"SELECT TOP 1 type FROM lists WHERE name = ?"
+            type = "No type"
+            with pyodbc.connect(cnxn_string) as conn:
+                df = pd.read_sql_query(query_type, conn, params=[name_dropdown])
+
+                if not df.empty:
+                    type = df.loc[0, 'type']
+                    print(type)
+
 
         if filename:
             # try:
@@ -1146,8 +1181,6 @@ def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, f
                     if df is not None:
                         isins = df
 
-                print("ISINS")
-                print(isins)
                 new_record_id = add_list_record(name, description, type, date,
                                                 filename)
                 print(f"New record ID: {new_record_id}")
@@ -1155,24 +1188,36 @@ def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, f
                 add_isins_to_list(isins, new_record_id)
 
                 list_options = [{'label': col, 'value': col} for col in get_list_names()]
-                list_options_with_dates = get_list_names_with_dates()
+                if not selected_date:
+                    list_options_with_dates = get_list_names_with_dates()
+                else:
+                    list_options_with_dates = get_list_names_with_dates_till_date(selected_date)
                 input_name = fetch_all_lists_names()
                 num_isins_added = len(isins)
 
-                return html.Div(f"File uploaded successfully! {num_isins_added} ISINs have been added."), list_options, list_options_with_dates, input_name
+                return html.Div(f"Datei erfolgreich hochgeladen! {num_isins_added} ISINs wurden hinzugefügt."), list_options, list_options_with_dates, input_name
             except Exception as e:
                 list_options = [{'label': col, 'value': col} for col in get_list_names()]
-                list_options_with_dates = get_list_names_with_dates()
+                if not selected_date:
+                    list_options_with_dates = get_list_names_with_dates()
+                else:
+                    list_options_with_dates = get_list_names_with_dates_till_date(selected_date)
                 input_name = fetch_all_lists_names()
-                return html.Div(f'Error processing file: {e}'), list_options, list_options_with_dates, input_name
+                return html.Div(f'Fehler bei der Verarbeitung der Datei: {e}'), list_options, list_options_with_dates, input_name
         else:
             list_options = [{'label': col, 'value': col} for col in get_list_names()]
-            list_options_with_dates = get_list_names_with_dates()
+            if not selected_date:
+                list_options_with_dates = get_list_names_with_dates()
+            else:
+                list_options_with_dates = get_list_names_with_dates_till_date(selected_date)
             input_name = fetch_all_lists_names()
-            return html.Div('No file selected.'), list_options, list_options_with_dates, input_name
+            return html.Div('Keine Datei ausgewählt.'), list_options, list_options_with_dates, input_name
 
     list_options = [{'label': col, 'value': col} for col in get_list_names()]
-    list_options_with_dates = get_list_names_with_dates()
+    if not selected_date:
+        list_options_with_dates = get_list_names_with_dates()
+    else:
+        list_options_with_dates = get_list_names_with_dates_till_date(selected_date)
     input_name = fetch_all_lists_names()
     return html.Div(), list_options, list_options_with_dates, input_name
 
@@ -1188,7 +1233,7 @@ def update_log_contents(n_intervals):
             data = file.read()
             return data
     except Exception as e:
-        return f"Error reading log file: {str(e)}"
+        return f"Fehler beim Lesen der Logdatei: {str(e)}"
 
 @app.callback(
     Output('output', 'children'),
@@ -1552,14 +1597,50 @@ def update_table( previous_data, list_input_dropdown, list_status_dropdown, list
 @app.callback(
     Output("download-dataframe-csv", "data"),
     Input("export-data-button", "n_clicks"),
-    State('data-table', 'data'),
+    State('data-table', 'derived_virtual_data'),
+    State('column-select-dropdown', 'value'),
+    State('lists-select-dropdown', 'value'),
     prevent_initial_call=True
 )
-def generate_csv(n_clicks, data):
+def generate_csv(n_clicks, data, selected_columns, selected_lists):
     if n_clicks is None:
         raise PreventUpdate
     df = pd.DataFrame(data)
-    return dcc.send_data_frame(df.to_csv, filename=f"exported_data_{datetime.now().strftime('%d-%m-%Y-%H-%M-%S')}.csv")
+
+    # Add default columns
+    default_columns = ['ISSUER_ISIN', 'ISSUER_NAME']
+    if selected_columns:
+        selected_columns = default_columns + selected_columns
+    else:
+        selected_columns = default_columns
+
+    # Ensure only the selected and default columns are included in the export
+    export_columns = [col for col in selected_columns if col in df.columns]
+
+    # Include list columns
+    if selected_lists:
+        export_columns.extend([col for col in selected_lists if col in df.columns])
+
+    df = df[export_columns]
+
+    # Filename with current date and time
+    filename = f"exported_data_{datetime.now().strftime('%d-%m-%Y-%H-%M-%S')}.xlsx"
+
+    # Export to Excel
+    with pd.ExcelWriter(filename, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name="Data", index=False)
+        workbook = writer.book
+        worksheet = writer.sheets["Data"]
+
+        # Set the width of each column
+        for col in df.columns:
+            max_length = max(df[col].astype(str).map(len).max(), len(col))
+            adjusted_width = max_length + 2
+            column_index = df.columns.get_loc(col)
+            column_letter = openpyxl.utils.get_column_letter(column_index + 1)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+
+    return dcc.send_file(filename)
 
 
 @app.callback(
@@ -1570,25 +1651,56 @@ def update_lists_dropdown(selected_date):
     print('updatelist')
     print(selected_date)
     if not selected_date:
+        print('here')
         list_options_with_dates = get_list_names_with_dates()
         return list_options_with_dates  # Return empty if no date is selected
     try:
+        print('here2222')
         list_options_with_dates = get_list_names_with_dates_till_date(selected_date)
         return list_options_with_dates
     except Exception as e:
         print(str(e))
         list_options_with_dates = get_list_names_with_dates()
         return list_options_with_dates
+
+
+
+# @app.callback(
+#     Output('isins-store', 'data'),
+#     Input('date-dropdown', 'value'),
+#     State('isins-store', 'data')
+# )
+# def update_isins_store(selected_date, store_data):
+#     if selected_date:
+#         print(f"Selected date: {selected_date}")
+#         if store_data and store_data.get('date') == selected_date:
+#             print("Returning cached data")
+#             return store_data  # Return cached data if already loaded
+#         options = get_unique_isins(selected_date)
+#         print(f"Fetched new options")
+#         return {'date': selected_date, 'options': options}
+#     return {}
+#
+# @app.callback(
+#     Output('isins-dropdown', 'options'),
+#     Input('isins-store', 'data')
+# )
+# def update_isins_dropdown(store_data):
+#     if store_data:
+#         print(f"Updating ISIN dropdown with store data.")
+#         return store_data.get('options', [])
+#     return []
+
 @app.callback(
     # Output('data-table', 'data'),
     # Output('data-table', 'columns'),
     Output('datatable', 'children'),
     Input('date-dropdown', 'value'),
-    Input('isins-dropdown', 'value'),
+    # Input('isins-dropdown', 'value'),
     Input('column-select-dropdown', 'value'),
     Input('lists-select-dropdown', 'value')
 )
-def update_data_table(selected_date, selected_isins, selected_columns, selected_lists):
+def update_data_table(selected_date,  selected_columns, selected_lists):
     try:
         if not selected_date:
             # Handle the case where no date is selected
@@ -1637,9 +1749,9 @@ def update_data_table(selected_date, selected_isins, selected_columns, selected_
 
         # Build the SQL query based on selected_date and isins
         query = f"SELECT TOP 1000 * FROM company RIGHT JOIN company_data ON company.CompanyID = company_data.CompanyID WHERE DataDate = '{selected_date}'"
-        if selected_isins:
-            selected_isins_str = ','.join(f"'{isin}'" for isin in selected_isins)
-            query += f" AND ISSUER_ISIN IN ({selected_isins_str})"
+        # if selected_isins:
+        #     selected_isins_str = ','.join(f"'{isin}'" for isin in selected_isins)
+        #     query += f" AND ISSUER_ISIN IN ({selected_isins_str})"
 
         # Fetch and filter data from the database
         df = pd.read_sql_query(query, conn)
@@ -1661,33 +1773,32 @@ def update_data_table(selected_date, selected_isins, selected_columns, selected_
         columns.insert(0, issuer_name_column)
         columns.insert(0, issuer_isin_column)
 
-        return dash_table.DataTable(id='data-table', style_cell_conditional=[
-            {'if': {'column_id': 'ISSUER_ISIN'}, 'width': '200px'},  # Set specific width for the ISIN column
-        ],
-                             fixed_columns={'headers': True, 'data': 1},
-                             style_table={'overflowX': 'auto', 'width': '100%', 'minWidth': '100%'},
-                             sort_action='native',
-                             sort_mode="multi",
-                            data=df.to_dict('records'),
-                            columns=columns,
-
-                             filter_action='native'
-                             )
-
-        # return df.to_dict('records'), columns
+        return [
+            dash_table.DataTable(
+                id='data-table',
+                style_cell_conditional=[{'if': {'column_id': 'ISSUER_ISIN'}, 'width': '200px'}],
+                fixed_columns={'headers': True, 'data': 1},
+                style_table={'overflowX': 'auto', 'width': '100%', 'minWidth': '100%'},
+                sort_action='native',
+                sort_mode="multi",
+                data=df.to_dict('records'),
+                columns=columns,
+                filter_action='native'
+            )
+        ]
     except Exception as e:
         return str(e)
 
 @app.callback(
     [Output('input-name-dropdown', 'style'),
-     Output('input-name', 'style')],
+     Output('input-name', 'style'), Output('input-type', 'style')],
     [Input('list-choice', 'value')]
 )
 def toggle_input_fields(choice):
     if choice == 'existing':
-        return {'display': 'block', 'width': '300px'}, {'display': 'none'}
+        return {'display': 'block', 'width': '300px'}, {'display': 'none'}, {'display': 'none'}
     else:
-        return {'display': 'none'}, {'display': 'block', 'width': '300px'}
+        return {'display': 'none'}, {'display': 'block', 'width': '300px'}, {'display': 'block', 'width': '300px'}
 
 
 server = app.server
