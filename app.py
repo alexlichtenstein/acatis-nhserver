@@ -996,7 +996,7 @@ app.layout = html.Div([
                 html.Button('Hochladen', id='upload-button', style={'margin': '10px 10px 10px 0px'}),
             ]),
             dcc.Loading(
-                    id="loading-company-table",
+                    id="loading-upload-result",
                     type="default",
                     children=[
                 html.Div(id='output-upload', style={'margin': '10px 10px 10px 10px'}),
@@ -1094,7 +1094,7 @@ def update_fields(filename):
     return type_from_filename, date_from_filename
 
 # Callback to handle file upload
-@app.callback([Output('output-upload', 'children'), Output('list-select-dropdown', 'options'), Output('lists-select-dropdown', 'options'), Output('input-name-dropdown', 'options')],
+@app.callback([Output('loading-upload-result', 'children'), Output('list-select-dropdown', 'options'), Output('lists-select-dropdown', 'options'), Output('input-name-dropdown', 'options')],
               [Input('upload-button', 'n_clicks'),
                Input('input-name-dropdown', 'value'),
                Input('input-name', 'value'),
