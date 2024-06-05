@@ -13,3 +13,23 @@
 .DateInput {
     width: 300px !important;
 }
+
+.Select-placeholder {
+    padding-left:1px !important;
+    width: 300px !important;
+}
+
+
+.Select-value {
+    padding-left:1px !important;
+}
+
+.DateInput_input {
+    font-family: var(--bs-body-font-family) !important;
+    font-size: var(--bs-body-font-size) !important;
+    font-weight: var(--bs-body-font-weight) !important;
+    line-height: var(--bs-body-line-height) !important;
+    padding-left:1px !important;
+    height: 34px !important;
+}
+

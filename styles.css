@@ -19,3 +19,7 @@
 .dash-table-container .dropdown.dropdown { position: static; }
 
 .Select-clear { display:none;}
+
+.SingleDatePicker {
+    width: 300px !important;
+}

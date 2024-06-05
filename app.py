@@ -585,6 +585,7 @@ list_options = [{'label': col, 'value': col} for col in get_list_names()]
 list_options_with_dates = get_list_names_with_dates()
 
 app.title = "Nachhaltigkeitsserver"
+
 # Define the layout of the app
 app.layout = html.Div([
     html.Div([
@@ -604,7 +605,7 @@ app.layout = html.Div([
                     id='add-company-input',
                     type='text',
                     placeholder='ISIN-Suche',
-                    style={'width': '20%'}
+                    style={'width': '20%','margin-top': '10px', 'margin-bottom': '10px'}
                 ),
                 html.Br(),
                 html.Div(id='add-company-output'),
@@ -695,7 +696,6 @@ app.layout = html.Div([
                             id="loading-data-table",
                             type="default",  # You can choose from 'graph', 'cube', 'circle', 'dot', or 'default'
                             children=[
-
                                 html.Div(id='datatable', children=[
                                 dash_table.DataTable(id='data-table',style_cell_conditional=[
                                             {'if': {'column_id': 'ISSUER_ISIN'}, 'width': '200px'},  # Set specific width for the ISIN column
@@ -736,7 +736,7 @@ app.layout = html.Div([
 
         ]),
 
-        dcc.Tab(label='Import Faktoren bearbeiten', children=[
+        dcc.Tab(label='Import-Faktoren bearbeiten', children=[
             html.Div([
                 html.Div([
                     html.H6("In der aktuellen Ansicht sehen Sie alle Faktoren, die von der MSCI API abgerufen werden. Sie können hier zusätzliche Faktoren hinzufügen oder bestehende deaktivieren.",
@@ -745,7 +745,7 @@ app.layout = html.Div([
                 dcc.Input(
                         id='new-factor-name-input',
                         type='text',
-                        placeholder='Technischer Name',style={'margin-top': '20px', 'margin-bottom': '10px'}
+                        placeholder='Technischer Name',style={'margin-top': '10px', 'margin-bottom': '0px'}
                     ),
                 html.Br(),
                 dcc.Input(
@@ -756,7 +756,7 @@ app.layout = html.Div([
                 ),
                 html.Br(),
                 html.Button('Neuen Faktor hinzufügen', id='add-factor-button'),
-                html.Div(id='add-factor-output', style={'margin-top': '20px', 'margin-bottom': '10px'}),
+                html.Div(id='add-factor-output', style={'margin-top': '10px', 'margin-bottom': '10px'}),
                 html.Div([
                     html.Label("MSCI-Suche:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
                 ]),
@@ -975,7 +975,7 @@ app.layout = html.Div([
             dcc.Input(id='input-name', type='text', placeholder='Name', ),
                 ], style={'margin': '10px 10px 10px 0px','width':'300px'}),
 
-            dcc.Textarea(id='input-description', placeholder='Kommentar', style={'margin': '0 10px 0 0px'}),
+            dcc.Textarea(id='input-description', placeholder='Kommentar', style={'margin': '0 10px 0 0px','width':'300px'}),
             dcc.Dropdown(
                 id='input-type',
                 options=[
@@ -990,10 +990,10 @@ app.layout = html.Div([
                 placeholder='Gültigkeitsdatum wählen',
                 clearable=True,
                 display_format='DD-MM-YYYY',
-                style={'margin': '10px 10px 10px 0px', 'width':'300px', 'display':'block'}
+                style={'margin': '10px 0px 10px 0px', 'width':'300px', 'display':'block'}
             ),
             html.Div(children=[
-                html.Button('Hochladen', id='upload-button', style={'margin': '10px 10px 10px 0px'}),
+                html.Button('Hochladen', id='upload-button', style={'margin': '0px 0px 10px 0px'}),
             ]),
             dcc.Loading(
                     id="loading-upload-result",
@@ -1763,8 +1763,8 @@ def update_data_table(selected_date,  selected_columns, selected_lists):
 
         # Close the database connection
         conn.close()
-        issuer_isin_column = {'name': 'ISSUER_ISIN', 'id': 'ISSUER_ISIN'}
-        issuer_name_column = {'name': 'ISSUER_NAME', 'id': 'ISSUER_NAME'}
+        issuer_isin_column = {'name': 'ISIN', 'id': 'ISSUER_ISIN'}
+        issuer_name_column = {'name': 'Firmenname', 'id': 'ISSUER_NAME'}
         columns = [{'name': col, 'id': col} for col in df.columns if col in selected_columns]
         for col in selected_lists:
             print(col)
@@ -1783,7 +1783,11 @@ def update_data_table(selected_date,  selected_columns, selected_lists):
                 sort_mode="multi",
                 data=df.to_dict('records'),
                 columns=columns,
-                filter_action='native'
+                filter_action='native',
+                filter_options={
+                    'placeholder_text': 'Daten filtern...',
+                    'case': 'insensitive'
+                },
             )
         ]
     except Exception as e:
@@ -1799,6 +1803,7 @@ def toggle_input_fields(choice):
         return {'display': 'block', 'width': '300px'}, {'display': 'none'}, {'display': 'none'}
     else:
         return {'display': 'none'}, {'display': 'block', 'width': '300px'}, {'display': 'block', 'width': '300px'}
+
 
 
 server = app.server
