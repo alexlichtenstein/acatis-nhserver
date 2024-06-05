@@ -624,7 +624,7 @@ app.layout = html.Div([
                     filter_action="native",
                     sort_action='native',
                     filter_options={
-                                        'placeholder_text': 'Daten filtern...',
+                                        'placeholder_text': 'Filtern nach ISIN',
                                         'case': 'insensitive'
                                     },
                     sort_mode="multi",
