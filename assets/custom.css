@@ -4,3 +4,12 @@
 .dash-table-container {
     overflow: visible;
 }
+
+.DateInput_input, .DateInput_input_1
+{
+    width: 300px !important;
+}
+
+.DateInput {
+    width: 300px !important;
+}

@@ -1,32 +1,14 @@
-Time operation started: 2024-04-30 16:06:08.943615
+Time operation started: 2024-06-05 02:24:52.279763
 Token for API been successfully generated.
 Following coverages available:esg_ratings, esg_controversies, climate_change_metrics, climate_var, bisr, government_ratings
 Starting collecting data from esg_ratings
-93 numbers of data points been successfully fetched
-Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, zzz, SDG_20_NET_ALIGNMENT, 123.
-No new ISINs to add to the companies(ISINS) table.
-90 new records have been added to the company_data table.
+97 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, zzz, SDG_20_NET_ALIGNMENT, 123, SDG 5, SDG 6, SDG 7, SDG 8, neu, neu_111, neu_111211.
+Check if new ISINs should be added to the company table.
+4 new ISINs have been added to the database.
+94 new records have been added to the company_data table.
 Starting collecting data from esg_controversies
-11854 numbers of data points been successfully fetched
-Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, zzz, SDG_20_NET_ALIGNMENT, 123.
-No new ISINs to add to the companies(ISINS) table.
-11460 new records have been added to the company_data table.
-Starting collecting data from climate_change_metrics
-12414 numbers of data points been successfully fetched
-Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, zzz, SDG_20_NET_ALIGNMENT, 123.
-No new ISINs to add to the companies(ISINS) table.
-12025 new records have been added to the company_data table.
-Starting collecting data from climate_var
-0 numbers of data points been successfully fetched
-Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, zzz, SDG_20_NET_ALIGNMENT, 123.
-Starting collecting data from bisr
-61392 numbers of data points been successfully fetched
-Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, zzz, SDG_20_NET_ALIGNMENT, 123.
-No new ISINs to add to the companies(ISINS) table.
-60176 new records have been added to the company_data table.
-Starting collecting data from government_ratings
-261 numbers of data points been successfully fetched
-Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, zzz, SDG_20_NET_ALIGNMENT, 123.
-No new ISINs to add to the companies(ISINS) table.
-181 new records have been added to the company_data table.
-Data been successfully fetched and stored to the internal database.
+11911 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, zzz, SDG_20_NET_ALIGNMENT, 123, SDG 5, SDG 6, SDG 7, SDG 8, neu, neu_111, neu_111211.
+Check if new ISINs should be added to the company table.
+19 new ISINs have been added to the database.
