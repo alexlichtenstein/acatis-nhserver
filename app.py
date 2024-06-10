@@ -437,14 +437,22 @@ ON
     # Execute the query
     cursor.execute(query)
 
-    # Fetch all column names and exclude specific columns
-    excluded_columns = {}
-    # columns = [{'name': row.name+'_'+str(row.MaxDate) for row in cursor.fetchall() if row.name not in excluded_columns]
-    columns = [{'label': col.name + '(' + str(col.MaxDate) + ')', 'value': col.name}
-                    for col in cursor.fetchall()]
+    # Fetch all rows
+    rows = cursor.fetchall()
+
+    # Process the rows and format the date
+    columns = [
+        {
+            'label': f"{row.name} - {row.MaxDate.strftime('%d-%m-%Y')}",
+            'value': row.name
+        }
+        for row in rows
+    ]
+
     # Close the connection
     cursor.close()
     cnxn.close()
+
     print(columns)
     return columns
 
@@ -488,7 +496,7 @@ def get_list_names_with_dates_till_date(max_date):
     # Fetch all column names and exclude specific columns
     excluded_columns = {}
     # columns = [{'name': row.name+'_'+str(row.MaxDate) for row in cursor.fetchall() if row.name not in excluded_columns]
-    columns = [{'label': col.name + '(' + str(col.MaxDate) + ')', 'value': col.name}
+    columns = [{'label': f"{col.name} - {col.MaxDate.strftime('%d-%m-%Y')}", 'value': col.name}
                     for col in cursor.fetchall()]
     # Close the connection
     cursor.close()
@@ -662,7 +670,7 @@ app.layout = html.Div([
                     style={'width': '300px'}  # Adjust the style as needed
                 ),
                 html.Div([
-                    html.Label("ESG-Faktoren:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                    html.Label("ESG-Faktoren (MSCI):", style={'margin-top': '10px', 'margin-bottom': '10px'}),
                 ]),
                 dcc.Dropdown(
                         id='column-select-dropdown',
@@ -671,7 +679,7 @@ app.layout = html.Div([
                         placeholder='Auswahl'
                     ),
                 html.Div([
-                    html.Label("ESG-Listen:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
+                    html.Label("Upload-Listen:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
                 ]),
                 dcc.Dropdown(
                         id='lists-select-dropdown',
@@ -679,21 +687,7 @@ app.layout = html.Div([
                         multi=True,
                         placeholder='Auswahl'
                     ),
-                # html.Div([
-                #     html.Label("ISIN Liste:", style={'margin-top': '10px', 'margin-bottom': '10px'}),
-                # ]),
-                # dcc.Loading(
-                #                             id="loading-esg-table",
-                #                             type="default",  # You can choose from 'graph', 'cube', 'circle', 'dot', or 'default'
-                #                             children=[
-                # dcc.Dropdown(
-                #     id='isins-dropdown',
-                #     # options=get_unique_isins(),
-                #     multi=True,
-                #     placeholder='Auswahl',
-                #     style={'width': '100%', 'margin-bottom': '10px'}
-                # ),
-                #                                 ]),
+
                 html.Button("Export", id="export-data-button", style={'margin-top': '10px'}),
                 dcc.Download(id="download-dataframe-csv"),
                 dcc.Loading(
@@ -1105,6 +1099,15 @@ def update_fields(filename):
         Output('list-select-dropdown', 'options'),
         Output('lists-select-dropdown', 'options'),
         Output('input-name-dropdown', 'options'),
+
+        Output('input-name', 'value'),
+        Output('input-description', 'value'),
+        Output('input-type', 'value', allow_duplicate=True),
+        Output('input-date', 'date', allow_duplicate=True),
+        Output('input-sheet', 'value'),
+        Output('upload-data', 'filename'),
+        Output('upload-data', 'contents'),
+        Output('list-choice', 'value')
     ],
     [
         Input('upload-button', 'n_clicks')
@@ -1120,7 +1123,8 @@ def update_fields(filename):
         State('upload-data', 'filename'),
         State('upload-data', 'contents'),
         State('list-choice', 'value')
-    ]
+    ],
+    prevent_initial_call = True
 )
 def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, selected_date, filename, contents, list_choice):
     ctx = dash.callback_context
@@ -1141,11 +1145,11 @@ def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, s
         elif name_dropdown:
             name = name_dropdown
         else:
-            return html.Div(f'Bitte Name eingeben'), list_options, list_options_with_dates, input_name
+            return html.Div(f'Bitte Name eingeben'), list_options, list_options_with_dates, input_name, '', '', '', None, '', None, None, 'new'
         if date:
             date = str(date)
         else:
-            return html.Div(f'Bitte Datum eingeben'), list_options, list_options_with_dates, input_name
+            return html.Div(f'Bitte Datum eingeben'), list_options, list_options_with_dates, input_name, '', '', '', None, '', None, None, 'new'
         if description:
             description = description
         else:
@@ -1154,7 +1158,7 @@ def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, s
             if type:
                 type = type
             else:
-                return html.Div(f'Bitte Typ wählen'), list_options, list_options_with_dates, input_name
+                return html.Div(f'Bitte Typ wählen'), list_options, list_options_with_dates, input_name, '', '', '', None, '', None, None, 'new'
         elif name_dropdown:
             print('oops ')
             print(name_dropdown)
@@ -1210,7 +1214,7 @@ def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, s
                 input_name = fetch_all_lists_names()
                 num_isins_added = len(isins)
 
-                return html.Div(f"Datei erfolgreich hochgeladen! {num_isins_added} ISINs wurden hinzugefügt."), list_options, list_options_with_dates, input_name
+                return html.Div(f"Datei erfolgreich hochgeladen! {num_isins_added} ISINs wurden hinzugefügt."), list_options, list_options_with_dates, input_name, '', '', '', None, '', None, None, 'new'
             except Exception as e:
                 list_options = [{'label': col, 'value': col} for col in get_list_names()]
                 if not selected_date:
@@ -1218,7 +1222,7 @@ def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, s
                 else:
                     list_options_with_dates = get_list_names_with_dates_till_date(selected_date)
                 input_name = fetch_all_lists_names()
-                return html.Div(f'Fehler bei der Verarbeitung der Datei: {e}'), list_options, list_options_with_dates, input_name
+                return html.Div(f'Fehler bei der Verarbeitung der Datei: {e}'), list_options, list_options_with_dates, input_name, '', '', '', None, '', None, None, 'new'
         else:
             list_options = [{'label': col, 'value': col} for col in get_list_names()]
             if not selected_date:
@@ -1226,7 +1230,7 @@ def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, s
             else:
                 list_options_with_dates = get_list_names_with_dates_till_date(selected_date)
             input_name = fetch_all_lists_names()
-            return html.Div('Keine Datei ausgewählt.'), list_options, list_options_with_dates, input_name
+            return html.Div('Keine Datei ausgewählt.'), list_options, list_options_with_dates, input_name, '', '', '', None, '', None, None, 'new'
 
     list_options = [{'label': col, 'value': col} for col in get_list_names()]
     if not selected_date:
@@ -1234,7 +1238,7 @@ def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, s
     else:
         list_options_with_dates = get_list_names_with_dates_till_date(selected_date)
     input_name = fetch_all_lists_names()
-    return html.Div(), list_options, list_options_with_dates, input_name
+    return html.Div(), list_options, list_options_with_dates, input_name, '', '', '', None, '', None, None, 'new'
 
 @app.callback(
     Output('output-historylog', 'children'),
@@ -1370,10 +1374,14 @@ def update_table(previous_data, factor_input_dropdown, n_clicks, new_factor_name
                             elif key == 'Name':
                                 old_name = previous[key]
                                 new_name = value
+                                print('HERE')
+                                print(old_name)
+                                print(new_name)
                                 update_query = f"UPDATE factors SET {key} = '{value}' WHERE Id = {factor_id}"
                                 update_queries.append(update_query)
                                 column_name_change_query = f"EXEC sp_rename 'company_data.[{old_name}]', '{new_name}', 'COLUMN';"
                                 update_queries.append(column_name_change_query)
+                                print(update_queries)
                             else:
                                 update_query = f"UPDATE factors SET {key} = '{value}' WHERE Id = {factor_id}"
                                 update_queries.append(update_query)
@@ -1386,6 +1394,7 @@ def update_table(previous_data, factor_input_dropdown, n_clicks, new_factor_name
                             conn.commit()
                     except Exception as e:
                         error_message = f"An error occurred while updating data: {str(e)}"
+                        print(error_message)
 
         return data_current, ""
     else:
@@ -1760,16 +1769,37 @@ def update_data_table(selected_date,  selected_columns, selected_lists):
                 isin_query = f"SELECT isin FROM lists_data WHERE list_id = {row['id']}"
                 isins_list_df = pd.read_sql_query(isin_query, conn)
                 list_columns[row['name']] = isins_list_df['isin'].tolist()
-        print(list_columns)
+        # print(list_columns)
+
 
         # Build the SQL query based on selected_date and isins
         query = f"SELECT TOP 1000 * FROM company RIGHT JOIN company_data ON company.CompanyID = company_data.CompanyID WHERE DataDate = '{selected_date}'"
-        # if selected_isins:
-        #     selected_isins_str = ','.join(f"'{isin}'" for isin in selected_isins)
-        #     query += f" AND ISSUER_ISIN IN ({selected_isins_str})"
 
         # Fetch and filter data from the database
         df = pd.read_sql_query(query, conn)
+
+        # Gather all unique ISINs from list_columns
+        all_isins = set()
+        for isins in list_columns.values():
+            all_isins.update(isins)
+
+        # Identify the ISINs that are not in df['ISSUER_ISIN']
+        current_isins = set(df['ISSUER_ISIN'].tolist())
+        new_isins = all_isins - current_isins
+
+        # Convert the DataFrame to a list of dictionaries
+        df_list = df.to_dict('records')
+
+        # Append new ISINs to the list of dictionaries
+        for isin in new_isins:
+            new_row = {'ISSUER_ISIN': isin}
+            for col in df.columns:
+                if col != 'ISSUER_ISIN':
+                    new_row[col] = None
+            df_list.append(new_row)
+
+        # Convert back to DataFrame
+        df = pd.DataFrame(df_list)
 
         for list_name, isins in list_columns.items():
             df[list_name] = df['ISSUER_ISIN'].apply(lambda x: 'Ja' if x in isins else 'Nein')
@@ -1833,5 +1863,5 @@ cache.clear()
 if __name__ == '__main__':
     if os.path.exists("selected_date.txt"):
         os.remove("selected_date.txt")
-    # app.run_server(debug=True, host='0.0.0.0', port=8050) #To run on server
-    app.run_server(debug=True) #To run locally
+    app.run_server(debug=True, host='0.0.0.0', port=8050) #To run on server
+    # app.run_server(debug=True) #To run locally
