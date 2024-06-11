@@ -71,7 +71,7 @@ german_locale_text = {
     "greaterThanOrEqual": "Größer oder gleich",
     "inRange": "Im Bereich",
     "contains": "Enthält",
-    "notContains": "Nicht enthalten",
+    "notContains": "Nicht enthält",
     "startsWith": "Beginnt mit",
     "endsWith": "Endet mit",
     # Column Menu

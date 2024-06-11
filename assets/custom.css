@@ -33,3 +33,10 @@
     height: 34px !important;
 }
 
+.ag-header-cell-text {
+    white-space: normal !important;
+}
+
+.ag-header-row {
+    height:60px !important;
+}
