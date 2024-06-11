@@ -53,10 +53,10 @@ users = {
     "acatis": generate_password_hash("Acatis2024!")
 }
 
-# @app.server.before_request
-# @auth.login_required
-# def restrict_access():
-#     pass
+@app.server.before_request
+@auth.login_required
+def restrict_access():
+    pass
 
 # Connection strings
 cnxn_string = (
@@ -1211,5 +1211,5 @@ server = app.server
 if __name__ == '__main__':
     if os.path.exists("selected_date.txt"):
         os.remove("selected_date.txt")
-    app.run_server(debug=True, host='0.0.0.0', port=8050) #To run on server
-    # app.run_server(debug=True) #To run locally
+    # app.run_server(debug=True, host='0.0.0.0', port=8050) #To run on server
+    app.run_server(debug=True) #To run locally

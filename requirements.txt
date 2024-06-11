@@ -46,3 +46,5 @@ gunicorn
 pdfplumber
 azure-storage-blob
 flask_caching
+dash_design_kit
+dash_ag_grid
