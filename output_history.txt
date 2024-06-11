@@ -10,7 +10,15 @@ Starting collecting data from esg_controversies
 11954 numbers of data points been successfully fetched
 Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, 112, banmb111.
 No new ISINs to add to the companies(ISINS) table.
+11551 new records have been added to the company_data table.
 Starting collecting data from climate_change_metrics
 12430 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, 112, banmb111.
+No new ISINs to add to the companies(ISINS) table.
+Starting collecting data from climate_var
+0 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, 112, banmb111.
+Starting collecting data from bisr
+61088 numbers of data points been successfully fetched
 Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, 112, banmb111.
 No new ISINs to add to the companies(ISINS) table.

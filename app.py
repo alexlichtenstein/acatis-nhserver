@@ -74,6 +74,8 @@ german_locale_text = {
     "notContains": "Nicht enthält",
     "startsWith": "Beginnt mit",
     "endsWith": "Endet mit",
+    "blank": "Leer",
+    "notBlank": "Nicht leer",
     # Column Menu
     "pinColumn": "Spalte anheften",
     "valueAggregation": "Wertaggregation",
@@ -87,7 +89,9 @@ german_locale_text = {
     # Other
     "export": "Exportieren",
     "csvExport": "CSV Export",
-    "excelExport": "Excel Export"
+    "excelExport": "Excel Export",
+    "andCondition": "und",
+    "orCondition": "oder"
 }
 
 
