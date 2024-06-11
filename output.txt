@@ -1,0 +1,17 @@
+Time operation started: 2024-06-11 12:54:43.430365
+Token for API been successfully generated.
+Following coverages available:esg_ratings, esg_controversies, climate_change_metrics, climate_var, bisr, government_ratings
+Starting collecting data from esg_ratings
+97 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, 112, banmb111.
+No new ISINs to add to the companies(ISINS) table.
+94 new records have been added to the company_data table.
+Starting collecting data from esg_controversies
+11954 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, 112, banmb111.
+No new ISINs to add to the companies(ISINS) table.
+11551 new records have been added to the company_data table.
+Starting collecting data from climate_change_metrics
+12430 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, 112, banmb111.
+No new ISINs to add to the companies(ISINS) table.
