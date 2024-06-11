@@ -535,7 +535,7 @@ app.layout = html.Div([
         dcc.Tab(value='tab-4', label='Import-Faktoren bearbeiten', children=[
             html.Div([
                 html.Div([
-                    html.H6("In der aktuellen Ansicht sehen Sie alle Faktoren, die von der MSCI API abgerufen werden. Sie können hier zusätzliche Faktoren hinzufügen oder bestehende deaktivieren.",
+                    html.H6("In der aktuellen Ansicht sehen Sie alle Faktoren, die von der MSCI API abgerufen werden. Sie können hier zusätzliche Faktoren hinzufügen oder bestehende deaktivieren. Die Änderung des technischen Namens nimmt Zeit in Anspruch (~30 Sekunden), da das Schema der Datenbank geändert wird.",
                             style={'margin-top': '20px', 'margin-bottom': '20px'}),
                 ]),
                 dcc.Input(id='new-factor-name-input', type='text', placeholder='Technischer Name', style={'margin-top': '10px', 'margin-bottom': '0px'}),
