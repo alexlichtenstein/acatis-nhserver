@@ -617,7 +617,7 @@ app.layout = html.Div([
                 ]),
                 dcc.Textarea(id='input-description', placeholder='Kommentar', style={'margin': '0 10px 0 0px', 'width': '330px'}),
                 dcc.Dropdown(id='input-type', options=[{'label': 'Positiv', 'value': 'Positiv'}, {'label': 'Negativ', 'value': 'Negativ'}], placeholder='Typ wählen', style={'margin': '10px 10px 10px 0px', 'width': '330px !important'}),
-                dcc.DatePickerSingle(id='input-date', placeholder='Gültigkeitsdatum wählen', clearable=True, display_format='DD-MM-YYYY', style={'margin': '10px 0px 10px 0px', 'width': '300px', 'display': 'block'}),
+                dcc.DatePickerSingle(id='input-date', placeholder='Gültigkeitsdatum wählen', clearable=True, display_format='DD.MM.YYYY', style={'margin': '10px 0px 10px 0px', 'width': '300px', 'display': 'block'}),
                 html.Div(children=[
                     html.Button('Hochladen', id='upload-button', style={'margin': '0px 0px 10px 0px'}),
                 ]),
@@ -1038,7 +1038,7 @@ def update_table(event, list_input_dropdown, list_status_dropdown, list_typ_drop
             with pyodbc.connect(cnxn_string) as conn:
                 df = pd.read_sql_query(query, conn)
                 df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
-                df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%d-%m-%Y')
+                df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%d.%m.%Y')
                 filtered_df = df[df['Status'].isin(list_status_dropdown) & df['Type'].isin(list_typ_dropdown)]
                 return filtered_df.to_dict('records'), list_options, list_options_with_dates
         else:
@@ -1066,7 +1066,7 @@ def update_table(event, list_input_dropdown, list_status_dropdown, list_typ_drop
             with pyodbc.connect(cnxn_string) as conn:
                 df = pd.read_sql_query(query, conn)
                 df['Status'] = df['Status'].apply(lambda x: 'Aktiv' if x == 1 else 'Inaktiv')
-                df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%d-%m-%Y')
+                df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%d.%m.%Y')
                 filtered_df = df[df['Status'].isin(list_status_dropdown) & df['Type'].isin(list_typ_dropdown)]
                 return filtered_df.to_dict('records'), list_options, list_options_with_dates
 
