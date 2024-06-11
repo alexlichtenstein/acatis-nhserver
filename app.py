@@ -56,6 +56,41 @@ users = {
 # Initialize current_output as an empty string
 current_output = ""
 
+german_locale_text = {
+    # General
+    "loadingOoo": "Lädt...",
+    "noRowsToShow": "Keine Zeilen zum Anzeigen",
+    # Filter
+    "filterOoo": "Filter...",
+    "applyFilter": "Filter anwenden",
+    "equals": "Gleich",
+    "notEqual": "Nicht gleich",
+    "lessThan": "Weniger als",
+    "greaterThan": "Größer als",
+    "lessThanOrEqual": "Kleiner oder gleich",
+    "greaterThanOrEqual": "Größer oder gleich",
+    "inRange": "Im Bereich",
+    "contains": "Enthält",
+    "notContains": "Nicht enthalten",
+    "startsWith": "Beginnt mit",
+    "endsWith": "Endet mit",
+    # Column Menu
+    "pinColumn": "Spalte anheften",
+    "valueAggregation": "Wertaggregation",
+    "autosizeThiscolumn": "Diese Spalte automatisch anpassen",
+    "autosizeAllColumns": "Alle Spalten automatisch anpassen",
+    "groupBy": "Gruppieren nach",
+    "ungroupBy": "Gruppierung aufheben nach",
+    # Side Bar
+    "columns": "Spalten",
+    "filters": "Filter",
+    # Other
+    "export": "Exportieren",
+    "csvExport": "CSV Export",
+    "excelExport": "Excel Export"
+}
+
+
 @auth.verify_password
 def verify_password(username, password):
     if username in users and \
@@ -428,6 +463,7 @@ app.layout = html.Div([
                                 {'headerName': 'Issuer Name', 'field': 'ISSUER_NAME', 'filter': 'agTextColumnFilter'},
                             ],
                             defaultColDef={'flex': 1, 'filter': True, 'sortable': True, 'editable': False, 'floatingFilter': True},
+                            dashGridOptions={"localeText": german_locale_text},
                             style={'height': '500px', 'width': '100%'},
                         )
                     ]
@@ -467,6 +503,7 @@ app.layout = html.Div([
                                 {'headerName': 'Issuer Name', 'field': 'ISSUER_NAME', 'filter': 'agTextColumnFilter'},
                             ],
                             defaultColDef={'flex': 1, 'filter': True, 'sortable': True, 'editable': False, 'floatingFilter': True},
+                            dashGridOptions={"localeText": german_locale_text},
                             style={'height': '500px', 'width': '100%'},
                         )
                         ]),
@@ -523,6 +560,7 @@ app.layout = html.Div([
                             ],
                             defaultColDef={'flex': 1, 'filter': True, 'sortable': True, 'floatingFilter': True},
                             style={'height': '500px', 'width': '100%'},
+                            dashGridOptions={"localeText": german_locale_text},
                             rowData=[],  # Initial empty data, to be filled in callback
                         )
                     ]
@@ -560,12 +598,13 @@ app.layout = html.Div([
                                 {'headerName': 'Name', 'field': 'Name', 'editable': True},
                                 {'headerName': 'Kommentar', 'field': 'Comment', 'editable': True},
                                 {'headerName': 'Gültigkeitsdatum der letzten Upload-Liste', 'field': 'Date', 'editable': False},
-                                {'headerName': 'Type', 'field': 'Type', 'editable': True, 'cellEditor': 'agSelectCellEditor', 'cellEditorParams': {'values': ['Positiv', 'Negativ']}},
+                                {'headerName': 'Typ', 'field': 'Type', 'editable': True, 'cellEditor': 'agSelectCellEditor', 'cellEditorParams': {'values': ['Positiv', 'Negativ']}},
                                 {'headerName': 'Anzahl Uploads', 'field': 'Anzahl', 'editable': False},
                                 {'headerName': 'Status', 'field': 'Status', 'editable': True, 'cellEditor': 'agSelectCellEditor', 'cellEditorParams': {'values': ['Aktiv', 'Inaktiv']}},
                             ],
                             defaultColDef={'flex': 1, 'filter': True, 'sortable': True, 'floatingFilter': True},
                             style={'height': '500px', 'width': '100%'},
+                            dashGridOptions={"localeText": german_locale_text},
                             rowData=[],  # Initial empty data, to be filled in callback
                         )
                     ]
@@ -582,7 +621,7 @@ app.layout = html.Div([
                     id='upload-data',
                     children=html.Div([
                         'Drag and Drop oder ',
-                        html.A('File wählen')
+                        html.A('Datei wählen')
                     ]),
                     style={
                         'width': '100%',
@@ -759,7 +798,7 @@ def upload_file(n_clicks, name_dropdown, name, description, type, date, sheet, s
                 return html.Div(f'Bitte Typ wählen'), list_options, list_options_with_dates, input_name, '', '', '', None, '', None, None, 'new'
         elif name_dropdown:
             query_type = f"SELECT TOP 1 type FROM lists WHERE name = ?"
-            type = "No type"
+            type = "Kein Typ ausgewälht"
             with pyodbc.connect(cnxn_string) as conn:
                 df = pd.read_sql_query(query_type, conn, params=[name_dropdown])
                 if not df.empty:
@@ -852,6 +891,17 @@ def start_script(n_clicks):
     thread = threading.Thread(target=run_script, daemon=True)
     thread.start()
     return False
+
+def run_script():
+    with open(output_file, "w") as file:
+        with open(output_file_history, "w") as file_history:
+            process = subprocess.Popen(['python', 'utils/api_connection.py'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+            for line in iter(process.stdout.readline, ''):
+                file.write(line)
+                file.flush()
+                file_history.write(line)
+                file_history.flush()
+
 
 @app.callback(
     Output('company-table', 'rowData'),
@@ -976,7 +1026,7 @@ def update_table(event, list_input_dropdown, list_status_dropdown, list_typ_drop
     columns = [
         {'headerName': 'Name', 'field': 'Name', 'editable': True},
         {'headerName': 'Gültigkeitsdatum der letzten Upload-Liste', 'field': 'Date', 'editable': False},
-        {'headerName': 'Type', 'field': 'Type', 'editable': True, 'cellEditor': 'agSelectCellEditor', 'cellEditorParams': {'values': ['Positiv', 'Negativ']}},
+        {'headerName': 'Typ', 'field': 'Type', 'editable': True, 'cellEditor': 'agSelectCellEditor', 'cellEditorParams': {'values': ['Positiv', 'Negativ']}},
         {'headerName': 'Anzahl Uploads', 'field': 'Anzahl', 'editable': False},
         {'headerName': 'Status', 'field': 'Status', 'editable': True, 'cellEditor': 'agSelectCellEditor', 'cellEditorParams': {'values': ['Aktiv', 'Inaktiv']}},
     ]
@@ -1200,6 +1250,7 @@ def update_data_table(selected_date, selected_columns, selected_lists):
                 columnDefs=columns,
                 rowData=df.to_dict('records'),
                 defaultColDef={'flex': 1, 'filter': True, 'sortable': True, 'editable': False, 'floatingFilter': True},
+                dashGridOptions={"localeText": german_locale_text},
                 style={'height': '500px', 'width': '100%'},
             )
         ]

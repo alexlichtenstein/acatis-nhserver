@@ -1,1 +1,28 @@
-No data
+Time operation started: 2024-06-11 11:57:08.658342
+Token for API been successfully generated.
+Following coverages available:esg_ratings, esg_controversies, climate_change_metrics, climate_var, bisr, government_ratings
+Starting collecting data from esg_ratings
+97 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER.
+Check if new ISINs should be added to the company table.
+1 new ISINs have been added to the database.
+94 new records have been added to the company_data table.
+Starting collecting data from esg_controversies
+11954 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER.
+Check if new ISINs should be added to the company table.
+9 new ISINs have been added to the database.
+11551 new records have been added to the company_data table.
+Starting collecting data from climate_change_metrics
+12430 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, 112, banmb.
+No new ISINs to add to the companies(ISINS) table.
+12031 new records have been added to the company_data table.
+Starting collecting data from climate_var
+0 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, 112, banmb.
+Starting collecting data from bisr
+61088 numbers of data points been successfully fetched
+Following problems have occured: The following factors were not recognized or not available to this user and were ignored: NON_PHARMACEUTICAL_TESTER, 112, banmb.
+Check if new ISINs should be added to the company table.
+10 new ISINs have been added to the database.
