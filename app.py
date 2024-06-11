@@ -893,14 +893,15 @@ def start_script(n_clicks):
     return False
 
 def run_script():
-    with open(output_file, "w") as file:
-        with open(output_file_history, "w") as file_history:
-            process = subprocess.Popen(['python', 'utils/api_connection.py'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
-            for line in iter(process.stdout.readline, ''):
-                file.write(line)
-                file.flush()
-                file_history.write(line)
-                file_history.flush()
+    with open(output_file, "w") as file, open(output_file_history, "w") as file_history:
+        process = subprocess.Popen(['python', 'utils/api_connection.py'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        for line in iter(process.stdout.readline, ''):
+            file.write(line)
+            file.flush()
+            file_history.write(line)
+            file_history.flush()
+            # Debugging: Print to console
+            print(line, end='')
 
 
 @app.callback(
