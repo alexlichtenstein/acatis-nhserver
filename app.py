@@ -53,6 +53,16 @@ users = {
     "acatis": generate_password_hash("Acatis2024!")
 }
 
+# Initialize current_output as an empty string
+current_output = ""
+
+@auth.verify_password
+def verify_password(username, password):
+    if username in users and \
+            check_password_hash(users.get(username), password):
+        return username
+
+# Protect the entire Dash app
 @app.server.before_request
 @auth.login_required
 def restrict_access():
