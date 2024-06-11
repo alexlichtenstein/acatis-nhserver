@@ -177,7 +177,7 @@ def get_unique_dates():
         with pyodbc.connect(cnxn_string) as conn:
             df = pd.read_sql_query("SELECT DISTINCT DataDate FROM company_data ORDER BY DataDate DESC", conn)
         df['DataDate'] = pd.to_datetime(df['DataDate'])
-        labels = df['DataDate'].dt.strftime('%d-%m-%Y').tolist()
+        labels = df['DataDate'].dt.strftime('%d.%m.%Y').tolist()
         values = df['DataDate'].dt.strftime('%Y-%m-%d').tolist()
         dropdown_options = [{'label': label, 'value': value} for label, value in zip(labels, values)]
         return dropdown_options
@@ -273,7 +273,7 @@ ON
     rows = cursor.fetchall()
     columns = [
         {
-            'label': f"{row.name} - {row.MaxDate.strftime('%d-%m-%Y')}",
+            'label': f"{row.name} - {row.MaxDate.strftime('%d.%m.%Y')}",
             'value': row.name
         }
         for row in rows
@@ -314,7 +314,7 @@ def get_list_names_with_dates_till_date(max_date):
         l.Status = 1;
     """
     cursor.execute(query, max_date)
-    columns = [{'label': f"{col.name} - {col.MaxDate.strftime('%d-%m-%Y')}", 'value': col.name} for col in cursor.fetchall()]
+    columns = [{'label': f"{col.name} - {col.MaxDate.strftime('%d.%m.%Y')}", 'value': col.name} for col in cursor.fetchall()]
     cursor.close()
     cnxn.close()
     return columns
@@ -1085,7 +1085,7 @@ def generate_csv(n_clicks, data, selected_columns, selected_lists):
         export_columns.extend([col for col in selected_lists if col in df.columns])
 
     df = df[export_columns]
-    filename = f"exported_data_{datetime.datetime.now().strftime('%d-%m-%Y-%H-%M-%S')}.xlsx"
+    filename = f"exported_data_{datetime.datetime.now().strftime('%d.%m.%Y-%H:%M:%S')}.xlsx"
     with pd.ExcelWriter(filename, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name="Data", index=False)
         workbook = writer.book
