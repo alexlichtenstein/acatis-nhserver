@@ -914,7 +914,7 @@ def run_script():
 )
 def display_filtered_company_data(isin_input):
     if not isin_input:
-        query = "SELECT TOP 1000 * FROM company"
+        query = "SELECT * FROM company"
     else:
         query = f"SELECT * FROM company WHERE ISSUER_ISIN LIKE '%{isin_input}%' OR ISSUER_NAME LIKE '%{isin_input}%'"
     try:
@@ -1218,7 +1218,7 @@ def update_data_table(selected_date, selected_columns, selected_lists):
                 isins_list_df = pd.read_sql_query(isin_query, conn)
                 list_columns[row['name']] = isins_list_df['isin'].tolist()
 
-        query = f"SELECT TOP 1000 * FROM company RIGHT JOIN company_data ON company.CompanyID = company_data.CompanyID WHERE DataDate = '{selected_date}'"
+        query = f"SELECT * FROM company RIGHT JOIN company_data ON company.CompanyID = company_data.CompanyID WHERE DataDate = '{selected_date}'"
         df = pd.read_sql_query(query, conn)
 
         all_isins = set()
