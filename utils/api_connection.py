@@ -6,7 +6,6 @@ import pandas as pd
 from datetime import datetime
 import numpy
 import warnings
-import sys
 
 # Function to create an unverified SSL context
 def create_unverified_ssl_context():
@@ -106,8 +105,8 @@ def coverages(token):
 # Returns:
 #   all_data (list): List of dictionaries containing issuer data.
 #   messages (list): List of messages indicating any issues encountered during data retrieval.
-def issuers(token, coverage, factor_name_list):
-    print(f"Starting collecting data from {coverage}")
+def issuers(token, coverage, factor_name_list, log_file):
+    log_file.write(f"Starting collecting data from {coverage}\n")
     context = create_unverified_ssl_context()
     conn = http.client.HTTPSConnection("api.msci.com", context=context)
     headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json', 'Accept': '*/*'}
@@ -131,7 +130,7 @@ def issuers(token, coverage, factor_name_list):
         res = conn.getresponse()
 
         if res.status != 200:
-            print(f"Error: {res.status}, {res.reason}")
+            log_file.write(f"Error: {res.status}, {res.reason}\n")
             return None
 
         data = res.read()
@@ -145,9 +144,10 @@ def issuers(token, coverage, factor_name_list):
             total_count = response_json["paging"]["total_count"]
 
         offset += limit
-    print(f"{total_count} numbers of data points been successfully fetched")
+
+    log_file.write(f"{total_count} data points successfully fetched\n")
     fetch_problems = "; ".join(messages)
-    print(f"Following problems have occured: {fetch_problems}")
+    log_file.write(f"Following problems occurred: {fetch_problems}\n")
     return all_data, messages
 
 # Function to retrieve factor names from the database.
@@ -189,7 +189,7 @@ def get_column_names():
 # Function to synchronize issuer data retrieved from the MSCI API with a SQL Server database.
 # Inputs:
 #   issuer_response (list): List of dictionaries containing issuer data from the MSCI API response.
-def sync_issuers_with_database(issuer_response):
+def sync_issuers_with_database(issuer_response, log_file):
     # Connection string
     cnxn_string = (
         'Driver={ODBC Driver 18 for SQL Server};'
@@ -223,7 +223,7 @@ def sync_issuers_with_database(issuer_response):
             return pd.read_sql(query, cnxn)
 
     def insert_new_records(new_records):
-        print("Check if new ISINs should be added to the company table.")
+        log_file.write("Checking if new ISINs should be added to the company table.\n")
         # Database connection code
         inserted_count = 0
         for _, row in new_records.iterrows():
@@ -245,9 +245,9 @@ def sync_issuers_with_database(issuer_response):
     # Insert new records into the database and print logs
     if not new_records.empty:
         inserted_count = insert_new_records(new_records)
-        print(f"{inserted_count} new ISINs have been added to the database.")
+        log_file.write(f"{inserted_count} new ISINs have been added to the database.\n")
     else:
-        print("No new ISINs to add to the companies(ISINS) table.")
+        log_file.write("No new ISINs to add to the companies(ISINS) table.\n")
 
     # Close the connection
     cursor.close()
@@ -256,7 +256,7 @@ def sync_issuers_with_database(issuer_response):
 # Function to insert issuer data retrieved from the MSCI API into a SQL Server database.
 # Inputs:
 #   issuer_response (list): List of dictionaries containing issuer data from the MSCI API response.
-def insert_issuer_data(issuer_response):
+def insert_issuer_data(issuer_response, log_file):
     # Connection string
     cnxn_string = (
         'Driver={ODBC Driver 18 for SQL Server};'
@@ -338,41 +338,35 @@ def insert_issuer_data(issuer_response):
     # Insert the data into the database
     if filtered_api_data:
         inserted_count = insert_data(filtered_api_data)
-        print(f"{inserted_count} new records have been added to the company_data table.")
+        log_file.write(f"{inserted_count} new records have been added to the company_data table.\n")
     else:
-        print("No new records to insert.")
+        log_file.write("No new records to insert.\n")
 
     # Close the connection
     cursor.close()
     cnxn.close()
 
-# Redirect stdout to a file
-log_file = open("output_history.txt", "a")
-sys.stdout = log_file
-
-client_id = "a568Wa48TM3xzfeOT8xxe3V5VJzo4Mfb"
-client_secret = "S1HM7CrxsnbUMRTUkn8o8-t-_OEYnSfXLyaze0IpgX1vPDweBW35wHzmidyvWxd6"
-print("Generate Token")
-# Generate token
-token = generate_token(client_id, client_secret)
-print("Generated token")
-current_time = datetime.now()
-# Print the current time
-print("Time operation started:", current_time)
-print(f"Token for API been successfully generated.")
-covs = coverages(token)
-cov_string = ", ".join(covs)
-print(f"Following coverages available:{cov_string}")
-for c in covs:
-    try:
-        response, messages = issuers(token, c, get_column_names())
-        sync_issuers_with_database(response)
-        insert_issuer_data(response)
-    except Exception as e:
-        print(f"Error processing coverage {c}: {str(e)}")
-        continue
-print("Data been successfully fetched and stored to the internal database.")
-
-# Close the log file and restore stdout
-sys.stdout = sys.__stdout__
-log_file.close()
+# Open the log file in append mode
+with open("output_history.txt", "a") as log_file:
+    client_id = "a568Wa48TM3xzfeOT8xxe3V5VJzo4Mfb"
+    client_secret = "S1HM7CrxsnbUMRTUkn8o8-t-_OEYnSfXLyaze0IpgX1vPDweBW35wHzmidyvWxd6"
+    log_file.write("Generate Token\n")
+    # Generate token
+    token = generate_token(client_id, client_secret)
+    log_file.write("Generated token\n")
+    current_time = datetime.now()
+    # Print the current time
+    log_file.write(f"Time operation started: {current_time}\n")
+    log_file.write("Token for API successfully generated.\n")
+    covs = coverages(token)
+    cov_string = ", ".join(covs)
+    log_file.write(f"Following coverages available: {cov_string}\n")
+    for c in covs:
+        try:
+            response, messages = issuers(token, c, get_column_names(), log_file)
+            sync_issuers_with_database(response, log_file)
+            insert_issuer_data(response, log_file)
+        except Exception as e:
+            log_file.write(f"Error processing coverage {c}: {str(e)}\n")
+            continue
+    log_file.write("Data successfully fetched and stored to the internal database.\n")
