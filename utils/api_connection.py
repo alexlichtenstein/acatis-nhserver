@@ -6,6 +6,7 @@ import pandas as pd
 from datetime import datetime
 import numpy
 import warnings
+import sys
 
 # Function to create an unverified SSL context
 def create_unverified_ssl_context():
@@ -345,7 +346,8 @@ def insert_issuer_data(issuer_response):
     cursor.close()
     cnxn.close()
 
-open('history_test', 'w').close()
+log_file = open("output_history.txt", "a")
+sys.stdout = log_file
 
 client_id = "a568Wa48TM3xzfeOT8xxe3V5VJzo4Mfb"
 client_secret = "S1HM7CrxsnbUMRTUkn8o8-t-_OEYnSfXLyaze0IpgX1vPDweBW35wHzmidyvWxd6"
@@ -368,3 +370,7 @@ for c in covs:
     except:
         continue
 print("Data been successfully fetched and stored to the internal database.")
+
+# Close the log file and restore stdout
+sys.stdout = sys.__stdout__
+log_file.close()
