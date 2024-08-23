@@ -49,7 +49,7 @@ cache.clear()
 
 output_file = "output.txt"
 output_file_history = "output_history.txt"
-open(output_file, 'w').close()
+open(output_file_history, 'w').close()
 
 # Initialize HTTP Basic Authentication
 auth = HTTPBasicAuth()
@@ -526,7 +526,7 @@ app.layout = html.Div([
                         html.H6("Die Daten werden regelmäßig einmal am Tag heruntergeladen. Wenn Sie den Datenabruf jetzt starten wollen, drücken Sie auf die Starttaste. Der Abruf wird sofort gestartet und ist in etwa 20 Minuten fertig.",
                                 style={'margin-top': '20px', 'margin-bottom': '20px'}),
                         dcc.Interval(id='interval-component', interval=5 * 1000, n_intervals=0, disabled=True),
-                        html.Button("Abruf jetzt starten", id="run-script-button"),
+                        html.Button("Abruf starten", id="run-script-button"),
                         dcc.Loading(children=[html.Pre(id="output"),]),
                     ], style={'margin': '0 5%'}),
                 ]),
@@ -873,7 +873,7 @@ def update_log_contents(n_intervals):
     if n_intervals == 0:
         return "Loading..."
     try:
-        with open(output_file_history, 'r') as file:
+        with open(output_file, 'r') as file:
             data = file.read()
             return data
     except Exception as e:
@@ -924,7 +924,7 @@ def update_output(n):
     if output_buffer:
         return output_buffer
     else:
-        return "No new output yet."
+        return ""
 
 
 @app.callback(

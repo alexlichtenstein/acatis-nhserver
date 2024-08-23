@@ -7,6 +7,7 @@ from datetime import datetime
 import numpy
 import warnings
 import sys
+import shutil
 
 
 
@@ -158,9 +159,9 @@ def issuers(token, coverage, factor_name_list):
     log_file.flush()
     print(f"{total_count} numbers of data points been successfully fetched")
     fetch_problems = "; ".join(messages)
-    log_file.write(f"Following problems have occured: {fetch_problems}\n")
+    log_file.write(f"Following notifications have occured: {fetch_problems}\n")
     log_file.flush()
-    print(f"Following problems have occured: {fetch_problems}")
+    print(f"Following notifications have occured: {fetch_problems}")
     return all_data, messages
 
 # Function to retrieve factor names from the database.
@@ -393,6 +394,8 @@ for c in covs:
     try:
         response, messages = issuers(token, c, get_column_names())
         sync_issuers_with_database(response)
+        log_file.write("Writing data to the database (it can take long time even for one coverage).")
+        log_file.flush()
         insert_issuer_data(response)
     except Exception as e:
         log_file.write(f"Error processing coverage {c}: {str(e)}\n")
@@ -402,7 +405,6 @@ for c in covs:
 log_file.write("Data been successfully fetched and stored to the internal database.\n")
 log_file.flush()
 print("Data been successfully fetched and stored to the internal database.")
-
-# Close the log file and restore stdout
-sys.stdout = sys.__stdout__
 log_file.close()
+# Make a copy of the file and name it 'output.txt'
+shutil.copyfile('output_history.txt', 'output.txt')
