@@ -346,6 +346,7 @@ def insert_issuer_data(issuer_response):
     cursor.close()
     cnxn.close()
 
+# Redirect stdout to a file
 log_file = open("output_history.txt", "a")
 sys.stdout = log_file
 
@@ -364,10 +365,11 @@ cov_string = ", ".join(covs)
 print(f"Following coverages available:{cov_string}")
 for c in covs:
     try:
-        response, messages = issuers(token,c,get_column_names())
+        response, messages = issuers(token, c, get_column_names())
         sync_issuers_with_database(response)
         insert_issuer_data(response)
-    except:
+    except Exception as e:
+        print(f"Error processing coverage {c}: {str(e)}")
         continue
 print("Data been successfully fetched and stored to the internal database.")
 
