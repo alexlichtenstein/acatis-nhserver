@@ -526,7 +526,7 @@ app.layout = html.Div([
                         html.H6("Die Daten werden regelmäßig einmal am Tag heruntergeladen. Wenn Sie den Datenabruf jetzt starten wollen, drücken Sie auf die Starttaste. Der Abruf wird sofort gestartet und ist in etwa 20 Minuten fertig.",
                                 style={'margin-top': '20px', 'margin-bottom': '20px'}),
                         dcc.Interval(id='interval-component', interval=5 * 1000, n_intervals=0, disabled=True),
-                        html.Button("Abruf starten", id="run-script-button"),
+                        html.Button("Abruf jetzt starten", id="run-script-button"),
                         dcc.Loading(children=[html.Pre(id="output"),]),
                     ], style={'margin': '0 5%'}),
                 ]),
