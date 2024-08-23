@@ -889,9 +889,9 @@ def update_output(n):
 
     new_output = ""
 
-    if os.path.exists(output_file):
-        with open(output_file, "r") as file:
-            try:
+    if os.path.exists(output_file_history):
+        try:
+            with open(output_file_history, "r") as file:
                 # Apply a shared lock on the file (non-blocking)
                 fcntl.flock(file, fcntl.LOCK_SH | fcntl.LOCK_NB)
 
@@ -913,9 +913,12 @@ def update_output(n):
                 # Append new output to the buffer
                 if new_output:
                     output_buffer += new_output
-            except BlockingIOError:
-                # If the file is currently locked, return the current output without any changes
-                pass
+        except BlockingIOError:
+            # If the file is currently locked, return the current output without any changes
+            pass
+        except Exception as e:
+            # Handle any other unexpected errors
+            return f"An error occurred: {str(e)}"
 
     # Return the full accumulated output or "No new output yet"
     if output_buffer:
@@ -930,7 +933,7 @@ def update_output(n):
     prevent_initial_call=True
 )
 def start_script(n_clicks):
-    open(output_file, 'w').close()
+    open(output_file_history, 'w').close()
     thread = threading.Thread(target=run_script, daemon=True)
     thread.start()
     return False
@@ -941,18 +944,18 @@ def run_script():
         process = subprocess.Popen(['python', 'utils/api_connection.py'], stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT, universal_newlines=True)
 
-        # Ensuring real-time output with unbuffered stdout
-        for line in iter(process.stdout.readline, ''):
-            if line:  # Ensure there is content in the line
-                file.write(line)
-                file.flush()
-                file_history.write(line)
-                file_history.flush()
-
-                # Debugging: Print to console
-                print(line, end='')
-
-        process.stdout.close()
+        # # Ensuring real-time output with unbuffered stdout
+        # for line in iter(process.stdout.readline, ''):
+        #     if line:  # Ensure there is content in the line
+        #         file.write(line)
+        #         file.flush()
+        #         file_history.write(line)
+        #         file_history.flush()
+        #
+        #         # Debugging: Print to console
+        #         print(line, end='')
+        #
+        # process.stdout.close()
         process.wait()
 
 

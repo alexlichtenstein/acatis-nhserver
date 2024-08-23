@@ -8,6 +8,11 @@ import numpy
 import warnings
 import sys
 
+
+
+# Redirect stdout to a file
+log_file = open("output_history.txt", "w")
+
 # Function to create an unverified SSL context
 def create_unverified_ssl_context():
     return ssl._create_unverified_context()
@@ -107,6 +112,8 @@ def coverages(token):
 #   all_data (list): List of dictionaries containing issuer data.
 #   messages (list): List of messages indicating any issues encountered during data retrieval.
 def issuers(token, coverage, factor_name_list):
+    log_file.write(f"Starting collecting data from {coverage}\n")
+    log_file.flush()
     print(f"Starting collecting data from {coverage}")
     context = create_unverified_ssl_context()
     conn = http.client.HTTPSConnection("api.msci.com", context=context)
@@ -131,6 +138,8 @@ def issuers(token, coverage, factor_name_list):
         res = conn.getresponse()
 
         if res.status != 200:
+            log_file.write(f"Error: {res.status}, {res.reason}\n")
+            log_file.flush()
             print(f"Error: {res.status}, {res.reason}")
             return None
 
@@ -145,8 +154,12 @@ def issuers(token, coverage, factor_name_list):
             total_count = response_json["paging"]["total_count"]
 
         offset += limit
+    log_file.write(f"{total_count} numbers of data points been successfully fetched\n")
+    log_file.flush()
     print(f"{total_count} numbers of data points been successfully fetched")
     fetch_problems = "; ".join(messages)
+    log_file.write(f"Following problems have occured: {fetch_problems}\n")
+    log_file.flush()
     print(f"Following problems have occured: {fetch_problems}")
     return all_data, messages
 
@@ -223,6 +236,8 @@ def sync_issuers_with_database(issuer_response):
             return pd.read_sql(query, cnxn)
 
     def insert_new_records(new_records):
+        log_file.write("Check if new ISINs should be added to the company table.\n")
+        log_file.flush()
         print("Check if new ISINs should be added to the company table.")
         # Database connection code
         inserted_count = 0
@@ -245,8 +260,12 @@ def sync_issuers_with_database(issuer_response):
     # Insert new records into the database and print logs
     if not new_records.empty:
         inserted_count = insert_new_records(new_records)
+        log_file.write(f"{inserted_count} new ISINs have been added to the database.\n")
+        log_file.flush()
         print(f"{inserted_count} new ISINs have been added to the database.")
     else:
+        log_file.write("No new ISINs to add to the companies(ISINS) table.\n")
+        log_file.flush()
         print("No new ISINs to add to the companies(ISINS) table.")
 
     # Close the connection
@@ -338,20 +357,22 @@ def insert_issuer_data(issuer_response):
     # Insert the data into the database
     if filtered_api_data:
         inserted_count = insert_data(filtered_api_data)
+        log_file.write(f"{inserted_count} new records have been added to the company_data table.\n")
+        log_file.flush()
         print(f"{inserted_count} new records have been added to the company_data table.")
     else:
+        log_file.write("No new records to insert.\n")
+        log_file.flush()
         print("No new records to insert.")
 
     # Close the connection
     cursor.close()
     cnxn.close()
 
-# Redirect stdout to a file
-log_file = open("output_history.txt", "w")
 
 client_id = "a568Wa48TM3xzfeOT8xxe3V5VJzo4Mfb"
 client_secret = "S1HM7CrxsnbUMRTUkn8o8-t-_OEYnSfXLyaze0IpgX1vPDweBW35wHzmidyvWxd6"
-log_file.write("Generate Token")
+log_file.write("Generate Token\n")
 log_file.flush()
 print("Generate Token")
 # Generate token
@@ -361,19 +382,25 @@ current_time = datetime.now()
 # Print the current time
 print("Time operation started:", current_time)
 print(f"Token for API been successfully generated.")
+log_file.write("Token for API been successfully generated.")
+log_file.flush()
 covs = coverages(token)
 cov_string = ", ".join(covs)
-log_file.write(f"Following coverages available:{cov_string}")
+log_file.write(f"Following coverages available:{cov_string}\n")
 log_file.flush()
-print(f"Following coverages available:{cov_string}")
+print(f"Following coverages available:{cov_string}\n")
 for c in covs:
     try:
         response, messages = issuers(token, c, get_column_names())
         sync_issuers_with_database(response)
         insert_issuer_data(response)
     except Exception as e:
-        print(f"Error processing coverage {c}: {str(e)}")
+        log_file.write(f"Error processing coverage {c}: {str(e)}\n")
+        log_file.flush()
+        print(f"Error processing coverage {c}: {str(e)}\n")
         continue
+log_file.write("Data been successfully fetched and stored to the internal database.\n")
+log_file.flush()
 print("Data been successfully fetched and stored to the internal database.")
 
 # Close the log file and restore stdout
