@@ -27,6 +27,10 @@ import re
 import base64
 import openpyxl
 import dash_ag_grid as dag
+import fcntl
+
+file_position = 0
+output_buffer = ""
 
 # Set up Diskcache for long callbacks
 cache = diskcache.Cache("./cache")
@@ -521,7 +525,7 @@ app.layout = html.Div([
                     html.Div([
                         html.H6("Die Daten werden regelmäßig einmal am Tag heruntergeladen. Wenn Sie den Datenabruf jetzt starten wollen, drücken Sie auf die Starttaste. Der Abruf wird sofort gestartet und ist in etwa 20 Minuten fertig.",
                                 style={'margin-top': '20px', 'margin-bottom': '20px'}),
-                        dcc.Interval(id='interval-component', interval=1 * 1000, n_intervals=0, disabled=True),
+                        dcc.Interval(id='interval-component', interval=5 * 1000, n_intervals=0, disabled=True),
                         html.Button("Abruf starten", id="run-script-button"),
                         dcc.Loading(children=[html.Pre(id="output"),]),
                     ], style={'margin': '0 5%'}),
@@ -880,10 +884,44 @@ def update_log_contents(n_intervals):
     Input('interval-component', 'n_intervals')
 )
 def update_output(n):
+    global file_position
+    global output_buffer
+
+    new_output = ""
+
     if os.path.exists(output_file):
         with open(output_file, "r") as file:
-            return file.read()
-    return "No output yet."
+            try:
+                # Apply a shared lock on the file (non-blocking)
+                fcntl.flock(file, fcntl.LOCK_SH | fcntl.LOCK_NB)
+
+                # Seek to the last known position
+                file.seek(file_position)
+
+                # Read new lines from the file
+                new_lines = file.readlines()
+
+                # Update the file position
+                file_position = file.tell()
+
+                # Release the lock
+                fcntl.flock(file, fcntl.LOCK_UN)
+
+                # Append new lines to the new output
+                new_output = ''.join(new_lines)
+
+                # Append new output to the buffer
+                if new_output:
+                    output_buffer += new_output
+            except BlockingIOError:
+                # If the file is currently locked, return the current output without any changes
+                pass
+
+    # Return the full accumulated output or "No new output yet"
+    if output_buffer:
+        return output_buffer
+    else:
+        return "No new output yet."
 
 @app.callback(
     Output('interval-component', 'disabled'),
