@@ -923,6 +923,7 @@ def update_output(n):
     else:
         return "No new output yet."
 
+
 @app.callback(
     Output('interval-component', 'disabled'),
     Input('run-script-button', 'n_clicks'),
@@ -934,16 +935,25 @@ def start_script(n_clicks):
     thread.start()
     return False
 
+
 def run_script():
     with open(output_file, "w") as file, open(output_file_history, "w") as file_history:
-        process = subprocess.Popen(['python', 'utils/api_connection.py'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+        process = subprocess.Popen(['python', 'utils/api_connection.py'], stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, universal_newlines=True)
+
+        # Ensuring real-time output with unbuffered stdout
         for line in iter(process.stdout.readline, ''):
-            file.write(line)
-            file.flush()
-            file_history.write(line)
-            file_history.flush()
-            # Debugging: Print to console
-            print(line, end='')
+            if line:  # Ensure there is content in the line
+                file.write(line)
+                file.flush()
+                file_history.write(line)
+                file_history.flush()
+
+                # Debugging: Print to console
+                print(line, end='')
+
+        process.stdout.close()
+        process.wait()
 
 
 @app.callback(
